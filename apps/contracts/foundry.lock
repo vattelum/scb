@@ -1,0 +1,8 @@
+{
+  "lib/sx-evm": {
+    "tag": {
+      "name": "v1.0.3",
+      "rev": "22fd8a8927854654ea100f838fe6d77edef450fa"
+    }
+  }
+}

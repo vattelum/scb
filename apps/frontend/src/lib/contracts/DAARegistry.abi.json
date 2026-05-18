@@ -1,0 +1,915 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "_coreAuthority",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "addCategory",
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "addDocument",
+    "inputs": [
+      {
+        "name": "input",
+        "type": "tuple",
+        "internalType": "struct DAARegistry.DocumentInput",
+        "components": [
+          {
+            "name": "categoryId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "documentId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "contentUri",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "contentHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "voteId",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "docType",
+            "type": "uint8",
+            "internalType": "uint8"
+          }
+        ]
+      },
+      {
+        "name": "refs",
+        "type": "tuple[]",
+        "internalType": "struct DocumentReference[]",
+        "components": [
+          {
+            "name": "registryAddress",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "chainId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "categoryId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "documentId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "version",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "relationType",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "targetSection",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "version",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "addDocumentWithRestrictions",
+    "inputs": [
+      {
+        "name": "input",
+        "type": "tuple",
+        "internalType": "struct DAARegistry.DocumentInput",
+        "components": [
+          {
+            "name": "categoryId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "documentId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "contentUri",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "contentHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "voteId",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "docType",
+            "type": "uint8",
+            "internalType": "uint8"
+          }
+        ]
+      },
+      {
+        "name": "refs",
+        "type": "tuple[]",
+        "internalType": "struct DocumentReference[]",
+        "components": [
+          {
+            "name": "registryAddress",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "chainId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "categoryId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "documentId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "version",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "relationType",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "targetSection",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      },
+      {
+        "name": "minTimeBetweenAmendments",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lockedSections",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "version",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "categoryCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "categoryNames",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "coreAuthority",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getAmendmentRestrictions",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "minTimeBetweenAmendments",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lastAmendmentTime",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lockedSections",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDocument",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "version",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct Document",
+        "components": [
+          {
+            "name": "contentUri",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "contentHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "version",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "timestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "voteId",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "docType",
+            "type": "uint8",
+            "internalType": "uint8"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDocumentCount",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getHistory",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct Document[]",
+        "components": [
+          {
+            "name": "contentUri",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "contentHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "version",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "timestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "voteId",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "docType",
+            "type": "uint8",
+            "internalType": "uint8"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getLatest",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct Document",
+        "components": [
+          {
+            "name": "contentUri",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "contentHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "version",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "timestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "voteId",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "docType",
+            "type": "uint8",
+            "internalType": "uint8"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getReferences",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "version",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct DocumentReference[]",
+        "components": [
+          {
+            "name": "registryAddress",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "chainId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "categoryId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "documentId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "version",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "relationType",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "targetSection",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getVersionCount",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "normalAuthority",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setAmendmentRestrictions",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minTimeBetweenAmendments",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lockedSections",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setCoreAuthority",
+    "inputs": [
+      {
+        "name": "newAuthority",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setNormalAuthority",
+    "inputs": [
+      {
+        "name": "newAuthority",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "AmendmentRestrictionsUpdated",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CategoryAdded",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CoreAuthorityTransferred",
+    "inputs": [
+      {
+        "name": "previous",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "current",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DocumentAdded",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "version",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "contentUri",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "contentHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "docType",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "NormalAuthorityTransferred",
+    "inputs": [
+      {
+        "name": "previous",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "current",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AmendmentTooSoon",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "earliestAllowed",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "CategoryDoesNotExist",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "DocumentDoesNotExist",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidAuthority",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotAuthority",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotCoreAuthority",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SectionLocked",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lockedSection",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "VersionDoesNotExist",
+    "inputs": [
+      {
+        "name": "categoryId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "version",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  }
+]

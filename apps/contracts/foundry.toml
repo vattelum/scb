@@ -1,0 +1,24 @@
+[profile.default]
+src = "src"
+out = "out"
+test = "test"
+script = "script"
+libs = ["lib"]
+solc = "0.8.31"
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@vattelum/document-registry/=lib/document-registry/solidity/src/",
+    "@openzeppelin/contracts-upgradeable/=lib/sx-evm/lib/openzeppelin-contracts-upgradeable/contracts/",
+    "@zodiac/=lib/sx-evm/lib/zodiac/contracts/",
+    "@gnosis.pm/safe-contracts=lib/sx-evm/lib/safe-contracts",
+    "sx-evm/=lib/sx-evm/src/",
+    "src/interfaces/IExecutionStrategy.sol=lib/sx-evm/src/interfaces/IExecutionStrategy.sol",
+    "src/interfaces/execution-strategies/=lib/sx-evm/src/interfaces/execution-strategies/"
+]
+
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+mainnet = "${MAINNET_RPC_URL}"

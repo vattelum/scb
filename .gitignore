@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+.env.local
+
+# Logs
+*.log
+
+# TypeScript
+*.tsbuildinfo
+
+# SvelteKit
+.svelte-kit/
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Foundry
+cache/
+out/
+broadcast/
+apps/contracts/lib/
+
+# Build output
+dist/
+build/
+.output
+.vercel
+.netlify
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Internal
+docs/
+specs/
+.specify/
+protocol/
+
+# Dev SSL certs
+*.pem

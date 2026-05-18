@@ -1,0 +1,70 @@
+@import 'tailwindcss';
+
+/* Document viewer: section spacing and indentation.
+   wrapSections() wraps each heading + its content in .doc-section-N divs. */
+.doc-section-1,
+.doc-section-2,
+.doc-section-3 {
+	margin-top: 1.25em;
+}
+
+.doc-section-1:first-child { margin-top: 0; }
+.doc-section-1 { padding-left: 0; }
+.doc-section-2 { padding-left: 1.5rem; }
+.doc-section-3 { padding-left: 3rem; }
+
+.doc-viewer h2,
+.doc-viewer h3,
+.doc-viewer h4 {
+	margin-top: 0;
+	margin-bottom: 0.4em;
+	font-weight: 700;
+}
+
+.doc-viewer h2 { font-size: 0.95rem; }
+.doc-viewer h3,
+.doc-viewer h4 { font-size: 0.875rem; }
+
+.doc-viewer p {
+	margin-top: 0.4em;
+	margin-bottom: 0.4em;
+	line-height: 1.65;
+}
+
+.doc-viewer h2:first-child {
+	margin-top: 0;
+}
+
+@theme {
+	/* Background */
+	--color-bg: #211C3B;
+	--color-bg-light: #2A2347;
+	--color-bg-lighter: #342D52;
+
+	/* Primary accent */
+	--color-primary: #8C5EA4;
+	--color-primary-hover: #68247E;
+
+	/* Category colors */
+	--color-cat-blue: #6FB4FF;
+	--color-cat-green: #2CC99F;
+	--color-cat-gold: #F7B54E;
+
+	/* Category shadow/dark variants */
+	--color-cat-blue-shadow: #0B4C9D;
+	--color-cat-green-shadow: #006960;
+	--color-cat-gold-shadow: #B18141;
+
+	/* Text */
+	--color-text: #FFFFFF;
+	--color-text-secondary: #A0A0B0;
+	--color-text-muted: #6B6B80;
+
+	/* Status */
+	--color-error: #EE2C05;
+	--color-success: #2CC99F;
+
+	/* Borders */
+	--color-border: #3D3560;
+	--color-border-light: #4A4270;
+}

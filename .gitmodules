@@ -1,0 +1,6 @@
+[submodule "apps/contracts/lib/sx-evm"]
+	path = apps/contracts/lib/sx-evm
+	url = https://github.com/snapshot-labs/sx-evm
+[submodule "apps/contracts/lib/document-registry"]
+	path = apps/contracts/lib/document-registry
+	url = https://github.com/vattelum/document-registry
