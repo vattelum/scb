@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { DocumentInfo } from '$lib/services/registry';
+	import Tooltip from '$lib/components/Tooltip.svelte';
 
 	let {
 		templates,
@@ -15,7 +16,7 @@
 </script>
 
 <div>
-	<label class="block text-sm text-text-secondary mb-1">Contract Template</label>
+	<label class="block text-sm text-text-secondary mb-1">Contract Template <Tooltip text={"Templates load from the DAARegistry category. These are set in your frontend .env file, by adding the value here: VITE_CONTRACT_TEMPLATE_CATEGORY_ID=[YOUR TEMPLATE CATEGORY NUMBER]. Category ids are assigned in creation by the deploy script (01_Deploy.s.sol logs \"Contract Templates = 3\").\n\nIf your template does not show up here, it could be that the wrong category number is added.\n\nTip: the /home page lists all categories of your registry in order. Find the category which holds your templates, and count its position starting from 0 (the first category is 0). That is the number you must fill in to seed your templates here."} align="left"><span class="text-text-muted cursor-help">(?)</span></Tooltip></label>
 	{#if loading}
 		<p class="text-text-muted text-sm">Loading templates...</p>
 	{:else if templates.length === 0}
