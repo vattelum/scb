@@ -13,6 +13,10 @@ Combining the SCB with the law-making abilities developed by the Vattelum projec
 
 Part of the [Vattelum](https://github.com/vattelum) ecosystem.
 
+### Highlight Video
+
+https://github.com/user-attachments/assets/35c52245-38ce-4241-b706-fdb070fd31ef
+
 ## Why do we need the Smart Contract Block?
 
 The world is governed by laws, not ledger entries.
