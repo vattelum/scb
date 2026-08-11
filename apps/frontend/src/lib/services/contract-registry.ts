@@ -537,7 +537,7 @@ export function getGoverningLawRegistry(references: DocumentReference[]): `0x${s
 // A contract revision is a new contract whose `references[]` includes an
 // DocumentReference pointing back at the underlying contract with
 // `registryAddress = ContractRegistry` and `relationType = 1 (REVISES)`. Per
-// Citation & Referencing Standard v6, REVISES denotes whole-document
+// Citation & Referencing Standard v10, REVISES denotes whole-document
 // replacement — which is exactly what a superseding contract is. The registry
 // contract is shared — detection is client-side by scanning refs.
 

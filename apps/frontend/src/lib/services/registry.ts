@@ -299,6 +299,8 @@ export interface DocumentBody {
 	contentUri: string;
 	contentHash: `0x${string}`;
 	docType: number;
+	/** On-chain version actually fetched (getLatest/getDocument) — authoritative for TEMPLATE references. */
+	version: bigint;
 }
 
 /**
@@ -341,7 +343,8 @@ export async function loadDocumentBody(
 		roles: parseRoleSchema(text),
 		contentUri: raw.contentUri,
 		contentHash: raw.contentHash,
-		docType: raw.docType
+		docType: raw.docType,
+		version: raw.version
 	};
 }
 

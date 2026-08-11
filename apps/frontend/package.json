@@ -25,7 +25,7 @@
 	},
 	"dependencies": {
 		"@ardrive/turbo-sdk": "^1.41.0",
-		"@vattelum/document-registry-js": "^0.2.0-pre",
+		"@vattelum/document-registry-js": "^0.3.0-pre",
 		"@wagmi/connectors": "^7.2.1",
 		"@wagmi/core": "^3.4.0",
 		"dompurify": "^3.3.3",

@@ -98,7 +98,7 @@ async function wrapKeyFor(
 	const ephPriv = secp256k1.utils.randomSecretKey();
 	const ephPub = secp256k1.getPublicKey(ephPriv, false); // 65 bytes: 0x04 || X || Y
 
-	const sharedPoint = secp256k1.getSharedSecret(ephPriv, recipientPub); // 33 bytes compressed
+	const sharedPoint = secp256k1.getSharedSecret(ephPriv, recipientPub, true); // 33 bytes compressed — pin compression explicitly against future noble defaults
 	const wrapKey = await deriveAesKey(sharedPoint);
 
 	const wrapIv = crypto.getRandomValues(new Uint8Array(12));
@@ -128,7 +128,7 @@ export async function decryptAsRecipient(
 	if (!slot) throw new Error(`No wrapped key for recipient ${recipientAddress}`);
 
 	const ephPubFull = uncompressedPubkeyBytes(slot.ephPub);
-	const sharedPoint = secp256k1.getSharedSecret(recipientPrivateScalar, ephPubFull);
+	const sharedPoint = secp256k1.getSharedSecret(recipientPrivateScalar, ephPubFull, true);
 	const wrapKey = await deriveAesKey(sharedPoint);
 
 	const wrapIv = base64ToBytes(slot.wrapIv);

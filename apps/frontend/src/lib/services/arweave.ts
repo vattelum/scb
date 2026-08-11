@@ -130,7 +130,7 @@ function normaliseHash(h: string): string {
 // Strip the frontmatter before hashing so verification computes over the same bytes that
 // were hashed at upload time.
 async function matchesContentHash(text: string, contentHash: string): Promise<boolean> {
-	const computed = normaliseHash(await hashBody(stripFrontmatter(text)));
+	const computed = normaliseHash(hashBody(stripFrontmatter(text)));
 	return computed === normaliseHash(contentHash);
 }
 

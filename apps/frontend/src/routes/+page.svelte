@@ -285,7 +285,15 @@
 
 			for (const ver of updatedVersions) {
 				for (const ref of ver.references) {
-					if (ref.categoryId !== cat.id || ref.documentId !== doc.documentId) continue;
+					// Only local, same-chain references contribute incoming-ref tags. An
+					// external-registry ref with colliding local IDs must not render false
+					// "Amended by" / "Repealed" tags on this document (N-4).
+					if (
+						ref.registryAddress.toLowerCase() !== daaRegistryAddress.toLowerCase() ||
+						ref.chainId !== chainId ||
+						ref.categoryId !== cat.id ||
+						ref.documentId !== doc.documentId
+					) continue;
 					const target = updatedVersions.find((v) => v.version === ref.version);
 					if (target) {
 						target.incomingRefs = [
@@ -355,6 +363,11 @@
 	}
 
 	function getRefDocTitle(ref: Reference): string {
+		// Foreign-registry refs must not resolve against local titles — surface them
+		// as external instead of mislabelling them with a same-ID local document (N-4).
+		if (ref.registryAddress.toLowerCase() !== daaRegistryAddress.toLowerCase()) {
+			return `doc ${ref.documentId} (external registry)`;
+		}
 		const cat = categories.find(c => c.id === ref.categoryId);
 		const doc = cat?.documents.find(d => d.documentId === ref.documentId);
 		return doc?.latestTitle ?? `doc ${ref.documentId}`;

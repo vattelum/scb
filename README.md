@@ -126,7 +126,7 @@ You are free to select your own categories of legislation, contract template cat
 
 #### Prerequisites
 
-- [Node.js](https://nodejs.org) 18+
+- [Node.js](https://nodejs.org) 20.19+ or 22.12+ (required by Vite 7)
 - [Foundry](https://getfoundry.sh) (for contract compilation, testing, and deployment)
 - An Ethereum wallet (MetaMask, Ledger, etc.)
 
