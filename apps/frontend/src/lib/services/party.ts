@@ -23,7 +23,7 @@
  *
  * Same input → byte-identical output → same content hash across clients
  * and across time. This file is the frozen baseline per Referencing
- * Standard v6 §10.4–10.5; any format change is a hash-breaking version bump.
+ * Standard v10 §10.4–10.5; any format change is a hash-breaking version bump.
  */
 
 import type { TemplateRole } from './template-variables';

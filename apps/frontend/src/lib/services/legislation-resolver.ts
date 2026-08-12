@@ -340,7 +340,16 @@ async function readReferenceTargetSection(
 			functionName: 'getReferences',
 			args: [categoryId, documentId, version]
 		})) as readonly RawReference[];
-		const match = refs.find((r) => r.relationType === expectedRelation);
+		// The ref must target THIS document on THIS registry, not merely carry the
+		// expected relation type — an external ref with colliding local IDs must not
+		// be mistaken for a self-target. Version is intentionally not filtered.
+		const match = refs.find(
+			(r) =>
+				r.relationType === expectedRelation &&
+				r.registryAddress.toLowerCase() === registryAddress.toLowerCase() &&
+				r.categoryId === categoryId &&
+				r.documentId === documentId
+		);
 		return match?.targetSection ?? '';
 	} catch {
 		return '';

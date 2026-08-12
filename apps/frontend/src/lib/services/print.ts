@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify';
 import type { ContractRecord, LifecycleEvent, DocumentReference } from '$lib/services/contract-registry';
 import { StatusLabels } from '$lib/services/contract-registry';
 import { arweaveUrl } from '$lib/services/arweave';
-import { stripFrontmatter, extractRevisionMeta } from '$lib/services/format';
+import { stripFrontmatter, extractRevisionMeta, formatDate } from '$lib/services/format';
 import { daaRegistryAddress } from '$lib/contracts';
 import { chainIdToExplorer, explorerAddressUrl, formatNetwork } from '$lib/constants/networks';
 import { RELATION_LABELS } from '$lib/constants/docTypes';
@@ -11,7 +11,9 @@ import {
 	RELATION_AMENDS,
 	RELATION_REVISES,
 	RELATION_GOVERNS,
-	RELATION_IMPLEMENTS
+	RELATION_IMPLEMENTS,
+	RELATION_REFERENCES,
+	RELATION_TEMPLATE
 } from '@vattelum/document-registry-js';
 import {
 	resolveLegislation,
@@ -55,6 +57,9 @@ interface AssemblyParams {
 	events: LifecycleEvent[];
 	contractRegistryAddress: string;
 	chainId: number;
+	/** Logical status at print time (effectiveStatus view) — may differ from the
+	 *  stored contract.status when a proposal has ripened or signing has expired. */
+	effectiveStatus: number;
 	options?: PrintOptions;
 	/**
 	 * When set, the printed document is a revision: title block adds a
@@ -141,6 +146,7 @@ function assembleHtml(params: AssemblyParams): string {
 		events,
 		contractRegistryAddress,
 		chainId,
+		effectiveStatus,
 		revisionSource,
 		draft
 	} = params;
@@ -156,7 +162,7 @@ function assembleHtml(params: AssemblyParams): string {
 		includeGoverningLaws: true
 	};
 
-	// Body sections: GOVERNS (4) and IMPLEMENTS (5) only. REFERENCES (7) live exclusively in the appendix's Legal References table.
+	// Body sections: GOVERNS (4) and IMPLEMENTS (5) only. REFERENCES (6) live exclusively in the appendix's Legal References table.
 	const governs = legislation.filter((l) => l.relationType === RELATION_GOVERNS);
 	const implements_ = legislation.filter((l) => l.relationType === RELATION_IMPLEMENTS);
 
@@ -271,8 +277,8 @@ function assembleHtml(params: AssemblyParams): string {
 
 <h1>${draft ? 'UNSIGNED &mdash; ' : ''}${escapeHtml(templateName)}</h1>
 <p class="subline">Contract #${contractId} &mdash; Registry: ${linkAddress(contractRegistryAddress, chainId)}</p>
-${revisionSource ? `<p class="subline">On ${formatPrintDate(new Date(Number(contract.createdAt) * 1000))} this contract revised Contract #${revisionSource.contractId.toString()}, signed ${formatPrintDate(new Date(Number(revisionSource.createdAt) * 1000))}.${revisionReason ? ` The reason for this revision is: ${escapeHtml(revisionReason)}` : ''}</p>` : ''}
-<p class="printed">Printed: ${formatPrintDate(new Date())}, status: ${StatusLabels[contract.status] ?? 'Unknown'}${draft ? ' (UNSIGNED)' : ''}</p>
+${revisionSource ? `<p class="subline">On ${formatDate(Number(contract.createdAt))} UTC this contract revised Contract #${revisionSource.contractId.toString()}, signed ${formatDate(Number(revisionSource.createdAt))} UTC.${revisionReason ? ` The reason for this revision is: ${escapeHtml(revisionReason)}` : ''}</p>` : ''}
+<p class="printed">Printed: ${formatDate(Math.floor(Date.now() / 1000))} UTC, status: ${renderStatusLabel(contract.status, effectiveStatus)}${draft ? ' (UNSIGNED)' : ''}</p>
 
 <h2>Contract</h2>
 <div>${formatMarkdown(contractContent)}</div>
@@ -291,8 +297,8 @@ ${options.includeGoverningLaws ? renderLawSectionFull('Governing Laws', governs)
 <tr><td>Contract Registry</td><td>${linkAddress(contractRegistryAddress, chainId)}</td></tr>
 <tr><td>Content URI</td><td>${(() => { const tx = contract.contentUris.find((t) => t && t.length > 0); return tx ? linkArweave(tx) : '<span class="mono">None (hash-only)</span>'; })()}</td></tr>
 <tr><td>Chain ID</td><td>${formatNetwork(chainId)}</td></tr>
-<tr><td>Status</td><td>${StatusLabels[contract.status] ?? 'Unknown'}</td></tr>
-<tr><td>Created</td><td>${new Date(Number(contract.createdAt) * 1000).toISOString()}</td></tr>
+<tr><td>Status</td><td>${renderStatusLabel(contract.status, effectiveStatus)}</td></tr>
+<tr><td>Created</td><td>${formatDate(Number(contract.createdAt))} UTC</td></tr>
 </table>
 
 ${renderScbSection(contract)}
@@ -324,7 +330,14 @@ ${[...contract.references].sort((a, b) => {
 	// Revision/amendment links to other contracts are listed last because
 	// they're cross-document lifecycle relations, not part of this contract's
 	// legal stack.
-	const order: Record<number, number> = { 4: 0, 5: 1, 7: 2, 8: 3, 1: 4, 0: 5 };
+	const order: Record<number, number> = {
+		[RELATION_GOVERNS]: 0,
+		[RELATION_IMPLEMENTS]: 1,
+		[RELATION_REFERENCES]: 2,
+		[RELATION_TEMPLATE]: 3,
+		[RELATION_REVISES]: 4,
+		[RELATION_AMENDS]: 5
+	};
 	return (order[a.relationType] ?? a.relationType) - (order[b.relationType] ?? b.relationType);
 }).flatMap((r) => {
 	const isContractRegistry = r.registryAddress.toLowerCase() === contractRegistryAddress.toLowerCase();
@@ -384,7 +397,7 @@ ${[...contract.references].sort((a, b) => {
 ${events.map((e) => `
 <div class="timeline-entry">
 <strong>${eventLabel(e.eventType)}</strong> by ${linkAddress(e.actor, chainId)}<br>
-<span class="timestamp">${new Date(Number(e.timestamp) * 1000).toISOString()}</span>
+<span class="timestamp">${formatDate(Number(e.timestamp))} UTC</span>
 ${e.reasonHash !== '0x0000000000000000000000000000000000000000000000000000000000000000' ? `<br>Reason: <span class="mono">${e.reasonHash}</span>` : ''}
 </div>`).join('')}
 </div>
@@ -431,9 +444,17 @@ function docTypeLabel(t: number): string {
 	return DOCTYPE_LABELS[t] ?? `Type ${t}`;
 }
 
-function formatPrintDate(d: Date): string {
-	const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-	return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+/**
+ * Status label for the printed record. Uses the read-time effectiveStatus so a
+ * ripened-but-unfinalized proposal shows its logical outcome, marked "(pending
+ * finalization)" until a finalize tx brings the stored status into line.
+ */
+function renderStatusLabel(storedStatus: number, effectiveStatus: number): string {
+	if (effectiveStatus !== storedStatus && (effectiveStatus === 4 || effectiveStatus === 5)) {
+		return `${StatusLabels[effectiveStatus] ?? 'Unknown'} (pending finalization)`;
+	}
+	if (effectiveStatus === 3) return 'Expired';
+	return StatusLabels[effectiveStatus] ?? 'Unknown';
 }
 
 function linkAddress(address: string, chainId: number): string {

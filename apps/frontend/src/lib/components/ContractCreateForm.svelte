@@ -6,8 +6,8 @@
 		type CreateContractParams
 	} from '$lib/services/contract-registry';
 	import { encryptForRecipients, type RecipientPubkey } from '$lib/services/ecies';
-	import { getPubkey } from '$lib/services/pubkey-registry';
-	import { hashBody, RELATION_TEMPLATE } from '@vattelum/document-registry-js';
+	import { getPubkey, clearPubkeyCache } from '$lib/services/pubkey-registry';
+	import { hashBody, canonicalizeBody, RELATION_TEMPLATE, RELATION_REVISES } from '@vattelum/document-registry-js';
 	import { hashToBytes32 } from '$lib/services/hash';
 	import { uploadDocument, verifyTurboHas } from '$lib/services/arweave';
 	import { contractRegistryAddress } from '$lib/contracts';
@@ -52,7 +52,7 @@
 		onopencontract: (id: bigint) => void;
 		/**
 		 * When set, this form creates a new contract that REVISES the given
-		 * underlying contract (per Referencing Standard v6 §3.1 — REVISES means
+		 * underlying contract (per Referencing Standard v10 §3.1 — REVISES means
 		 * whole-document replacement). The UI shows a "Revising Contract #N"
 		 * banner; submit prepends a REVISES DocumentReference to the new
 		 * contract's references, enforces that signatories equal the source's
@@ -77,6 +77,9 @@
 	let selectedTemplate = $state<DocumentInfo | null>(null);
 	let loadingTemplate = $state(false);
 	let templateContent = $state('');
+	// On-chain version of the selected template as actually fetched (getLatest),
+	// used for the TEMPLATE reference — avoids the list-time versionCount race.
+	let templateVersion = $state(0n);
 	let templateVariables = $state<Array<{ name: string; label: string; type: string; required: boolean }>>([]);
 	let templateRoles = $state<TemplateRole[]>([]);
 	let variableValues = $state<Record<string, string>>({});
@@ -165,6 +168,7 @@
 		try {
 			const loaded = await loadDocumentBody(contractTemplateCategoryId!, doc.documentId);
 			templateContent = loaded.body;
+			templateVersion = loaded.version;
 			templateVariables = loaded.variables;
 			templateRoles = loaded.roles;
 
@@ -275,7 +279,10 @@
 			}
 			preamble += '\n';
 		}
-		return `${preamble}${renderedParties}\n\n${body.trimStart()}`;
+		// Canonicalize once, here, so the single assembled string feeds hash,
+		// validation, ECIES encryption, the hash-only archive, and the .md
+		// download identically (S-4). Verifier paths must NOT re-canonicalize.
+		return canonicalizeBody(`${preamble}${renderedParties}\n\n${body.trimStart()}`);
 	}
 
 	// ────────────────── Archive export ───────────────────────
@@ -432,7 +439,7 @@ references:${refsYaml}${partiesYaml}
 				}
 			}
 
-			// Revision-mode guardrails (per Referencing Standard v6 §3.1 — REVISES
+			// Revision-mode guardrails (per Referencing Standard v10 §3.1 — REVISES
 			// is whole-document replacement; the parties cannot change).
 			if (revisionOf !== null) {
 				const expected = (revisionSourceSignatories ?? []).map((s) => s.toLowerCase()).sort();
@@ -456,7 +463,7 @@ references:${refsYaml}${partiesYaml}
 			// bytes must also be safe).
 			await validateMarkdownUpload(completeDoc);
 
-			const bodyHash = await hashBody(completeDoc);
+			const bodyHash = hashBody(completeDoc);
 			const contentHash = hashToBytes32(bodyHash) as `0x${string}`;
 
 			if (revisionOf !== null && revisionSourceContentHash && contentHash === revisionSourceContentHash) {
@@ -470,6 +477,10 @@ references:${refsYaml}${partiesYaml}
 			if (!hashOnlyMode) {
 				const recipients: RecipientPubkey[] = [];
 				const unregistered: `0x${string}`[] = [];
+				// Bypass the session pubkey cache so encryption targets the keys
+				// currently registered on-chain (a signatory may have re-registered
+				// since the cache was warmed).
+				clearPubkeyCache();
 				for (const addr of signatories) {
 					const pk = await getPubkey(addr);
 					if (pk) recipients.push({ address: addr, pubkey: pk });
@@ -527,7 +538,7 @@ references:${refsYaml}${partiesYaml}
 								categoryId: 0n,
 								documentId: revisionOf,
 								version: 0n,
-								relationType: 1, // REVISES (Citation & Referencing Standard v6 §3.1)
+								relationType: RELATION_REVISES,
 								targetSection: ''
 							} satisfies DocumentReference
 						]
@@ -537,7 +548,7 @@ references:${refsYaml}${partiesYaml}
 					chainId: BigInt(chainId),
 					categoryId: BigInt(contractTemplateCategoryId!),
 					documentId: BigInt(selectedTemplate.documentId),
-					version: BigInt(selectedTemplate.versionCount),
+					version: templateVersion,
 					relationType: RELATION_TEMPLATE,
 					targetSection: ''
 				},

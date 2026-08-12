@@ -125,7 +125,7 @@
 	const viewLegislationRefs = $derived.by(() => {
 		if (!viewContract) return [] as DocumentReference[];
 		return [...viewContract.references]
-			.filter((r) => r.relationType !== 8)
+			.filter((r) => r.relationType !== RELATION_TEMPLATE)
 			.sort((a, b) => a.relationType - b.relationType);
 	});
 
@@ -315,7 +315,7 @@
 			viewContentVerified = false;
 			return false;
 		}
-		const bodyHash = await hashBody(body);
+		const bodyHash = hashBody(body);
 		const computedHash = hashToBytes32(bodyHash);
 		if (computedHash === viewContract.contentHash) {
 			viewContent = body;
@@ -332,9 +332,11 @@
 		decrypting = true;
 		error = '';
 		try {
-			// All signatories share a single ECIES blob on Arweave. Find any populated
-			// TX ID (creator's slot is always set; signatories pass the same TX at sign).
-			const sharedTxId = viewContract.contentUris.find((t) => t && t.length > 0);
+			// The creator's ECIES blob is always at slot 0; later slots are the
+			// append-only audit trail (signers re-push the same TX at sign time).
+			// Read slot 0 explicitly rather than scanning, so the retrieval target
+			// can't be influenced by later entries.
+			const sharedTxId = viewContract.contentUris[0]?.length ? viewContract.contentUris[0] : undefined;
 			if (!sharedTxId) {
 				error = 'No encrypted copy found on Arweave. If this contract was just created, Arweave may still be propagating — try again in a minute. If this contract was created in hash-only mode, use Import to load the .md file instead.';
 				return;
@@ -371,7 +373,7 @@
 			const decrypted = await decryptAsRecipient(blob, $wallet.address, scalar);
 			const ok = await verifyAndSetContent(decrypted);
 			if (!ok) {
-				error = 'Content mismatch — the decrypted document does not match the on-chain content hash. Signing is disabled. The creator may have uploaded a different document than they claimed.';
+				error = 'Content mismatch — the decrypted document does not match the on-chain content hash. Signing is disabled.';
 			}
 		} catch (e: any) {
 			// AES-GCM decryption failures throw opaque "OperationError" in the
@@ -435,9 +437,10 @@
 				governingLawRegistry
 			);
 
-			// Reuse the shared ECIES blob the creator uploaded — every signatory's
-			// wrapped key is already in it. No re-encryption, no second Arweave upload.
-			const sharedTxId = viewContract.contentUris.find((t) => t && t.length > 0) ?? '';
+			// Reuse the creator's shared ECIES blob (slot 0) — every signatory's
+			// wrapped key is already in it. No re-encryption, no second Arweave
+			// upload. Later slots are audit trail only.
+			const sharedTxId = viewContract.contentUris[0]?.length ? viewContract.contentUris[0] : '';
 
 			// Submit on-chain
 			const txHash = await signOnChain(viewContractId, signature, sharedTxId);
@@ -737,6 +740,7 @@
 				events: viewEvents,
 				contractRegistryAddress,
 				chainId,
+				effectiveStatus: viewDisplayStatus,
 				options: printOptions,
 				revisionSource,
 				draft: isDraft
@@ -1276,7 +1280,7 @@
 	<!-- ═══════════════ CONFIRM MODAL ═══════════════ -->
 	{#if viewContract && viewContractId}
 		{@const templateRef = viewContract.references.find(r => r.relationType === RELATION_TEMPLATE)}
-		{@const legislationRefs = [...viewContract.references].filter(r => r.relationType !== 8).sort((a, b) => a.relationType - b.relationType)}
+		{@const legislationRefs = [...viewContract.references].filter(r => r.relationType !== RELATION_TEMPLATE).sort((a, b) => a.relationType - b.relationType)}
 		<Modal bind:open={showConfirmModal} title="Confirm Signature" maxWidth="max-w-lg">
 			<div class="flex flex-col gap-3 text-sm">
 				<div>

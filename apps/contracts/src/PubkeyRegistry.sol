@@ -9,7 +9,7 @@ pragma solidity ^0.8.29;
 ///         from a wallet signature, so the same wallet always re-derives
 ///         the same encryption key without ever exposing its private key.
 ///         This design is wallet-agnostic: any EVM wallet that supports
-///         personal_sign can participate (MetaMask, WalletConnect, hardware
+///         EIP-712 signTypedData can participate (MetaMask, WalletConnect, hardware
 ///         wallets, mobile wallets). Standalone — no dependency on DAAToken
 ///         or any other contract — so the registry is reusable across products.
 contract PubkeyRegistry {
