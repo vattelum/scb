@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatCitation } from '@vattelum/document-registry-js';
+	import { formatCitation, RELATION_REFERENCES } from '@vattelum/document-registry-js';
 	import { chainIdToLabel } from '$lib/constants/networks';
 
 	let {
@@ -9,6 +9,8 @@
 		timestamp,
 		registryAddress,
 		chainId,
+		categoryId,
+		documentId,
 		categoryName,
 		targetSection = ''
 	}: {
@@ -18,6 +20,8 @@
 		timestamp: number;
 		registryAddress: string;
 		chainId: number;
+		categoryId: number;
+		documentId: number;
 		categoryName: string;
 		targetSection?: string;
 	} = $props();
@@ -28,10 +32,10 @@
 		const ref = {
 			registryAddress,
 			chainId: BigInt(chainId),
-			categoryId: 0n,
-			documentId: 0n,
+			categoryId: BigInt(categoryId),
+			documentId: BigInt(documentId),
 			version: BigInt(version),
-			relationType: 0,
+			relationType: RELATION_REFERENCES,
 			targetSection
 		};
 		const doc = {

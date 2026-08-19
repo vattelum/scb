@@ -4,7 +4,7 @@ pragma solidity ^0.8.29;
 import {Test} from "forge-std/Test.sol";
 import {DAAToken} from "../src/DAAToken.sol";
 import {DAARegistry} from "../src/DAARegistry.sol";
-import {Document, DocumentReference} from "@vattelum/document-registry/DocumentRegistry.sol";
+import {IDocumentRegistry, Document, DocumentReference} from "@vattelum/document-registry/DocumentRegistry.sol";
 import {IVerifier} from "../src/interfaces/IVerifier.sol";
 
 /// @dev Mock verifier that approves only whitelisted addresses.
@@ -131,7 +131,7 @@ contract ForwardCompatTest is Test {
 
         vm.prank(normalAuth);
         vm.expectEmit(true, true, true, true);
-        emit DAARegistry.DocumentAdded(0, 1, 1, "tx_evt", HASH_A, 1);
+        emit IDocumentRegistry.DocumentAdded(0, 1, 1, "tx_evt", HASH_A, 1);
         registry.addDocument(input, refs);
     }
 

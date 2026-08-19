@@ -3,6 +3,7 @@ pragma solidity ^0.8.29;
 
 import {
     IDocumentRegistry,
+    IDocumentRegistryEnumerable,
     Document,
     DocumentReference,
     DOC_TYPE_ORIGINAL,
@@ -24,7 +25,7 @@ import {
 /// @notice Append-only registry of ratified documents organized by category with a document
 ///         layer (categories as folders containing independent documents), external references,
 ///         per-document amendment restrictions, and two-tier governance authority.
-contract DAARegistry is IDocumentRegistry {
+contract DAARegistry is IDocumentRegistry, IDocumentRegistryEnumerable {
     // ──────────────────────── Structs ──────────────────────────
 
     struct DocumentInput {
@@ -58,14 +59,6 @@ contract DAARegistry is IDocumentRegistry {
     // ──────────────────────── Events ──────────────────────────
 
     event CategoryAdded(uint256 indexed categoryId, string name);
-    event DocumentAdded(
-        uint256 indexed categoryId,
-        uint256 indexed documentId,
-        uint256 indexed version,
-        string contentUri,
-        bytes32 contentHash,
-        uint8 docType
-    );
     event NormalAuthorityTransferred(address indexed previous, address indexed current);
     event CoreAuthorityTransferred(address indexed previous, address indexed current);
     event AmendmentRestrictionsUpdated(uint256 indexed categoryId, uint256 indexed documentId);
@@ -80,6 +73,7 @@ contract DAARegistry is IDocumentRegistry {
     error InvalidAuthority();
     error AmendmentTooSoon(uint256 categoryId, uint256 documentId, uint256 earliestAllowed);
     error SectionLocked(uint256 categoryId, uint256 documentId, uint256 lockedSection);
+    error IndexOutOfRange(uint256 index, uint256 count);
 
     // ──────────────────────── Modifiers ──────────────────────
 
@@ -298,9 +292,33 @@ contract DAARegistry is IDocumentRegistry {
     }
 
     /// @notice Retrieve the document count for a category.
-    function getDocumentCount(uint256 categoryId) external view returns (uint256) {
+    function getDocumentCount(uint256 categoryId) external view override returns (uint256) {
         _requireCategory(categoryId);
         return _documentCounts[categoryId];
+    }
+
+    /// @notice Number of categories, for position-based enumeration.
+    function getCategoryCount() external view override returns (uint256) {
+        return categoryCount;
+    }
+
+    /// @notice Category id at a 0-based position. Categories are numbered from 0, so position and
+    ///         id coincide here; consumers read through this accessor rather than assuming that.
+    function getCategoryIdAt(uint256 index) external view override returns (uint256) {
+        if (index >= categoryCount) {
+            revert IndexOutOfRange(index, categoryCount);
+        }
+        return index;
+    }
+
+    /// @notice Document id at a 0-based position within a category. Documents are numbered from 1.
+    function getDocumentIdAt(uint256 categoryId, uint256 index) external view override returns (uint256) {
+        _requireCategory(categoryId);
+        uint256 count = _documentCounts[categoryId];
+        if (index >= count) {
+            revert IndexOutOfRange(index, count);
+        }
+        return index + 1;
     }
 
     /// @notice Retrieve amendment restrictions for a document.

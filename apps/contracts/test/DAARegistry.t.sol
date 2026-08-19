@@ -965,6 +965,70 @@ contract DAARegistryTest is Test {
         emit log_named_uint("Gas used for addDocument (new)", gasUsed);
     }
 
+    // ──────────────── Enumeration ───────────────────────────
+
+    function test_enumeration_walksCategoriesAndDocuments() public {
+        _createCategory("Governing Laws");
+        _createCategory("Chain Standards");
+        _addNewDocument(0, "tx_a", HASH_A, "Law A", "", 0);
+        _addNewDocument(0, "tx_b", HASH_B, "Law B", "", 0);
+        _addNewDocument(1, "tx_c", HASH_A, "Standard C", "", 0);
+
+        assertEq(registry.getCategoryCount(), 2);
+        assertEq(registry.getCategoryIdAt(0), 0);
+        assertEq(registry.getCategoryIdAt(1), 1);
+
+        assertEq(registry.getDocumentCount(0), 2);
+        assertEq(registry.getDocumentIdAt(0, 0), 1);
+        assertEq(registry.getDocumentIdAt(0, 1), 2);
+
+        assertEq(registry.getDocumentCount(1), 1);
+        assertEq(registry.getDocumentIdAt(1, 0), 1);
+    }
+
+    function test_enumeration_idsResolveThroughReadTrio() public {
+        _createCategory("Governing Laws");
+        _addNewDocument(0, "tx_a", HASH_A, "Law A", "", 0);
+
+        uint256 categoryId = registry.getCategoryIdAt(0);
+        uint256 documentId = registry.getDocumentIdAt(categoryId, 0);
+        Document[] memory history = registry.getHistory(categoryId, documentId);
+
+        assertEq(history.length, 1);
+        assertEq(history[0].title, "Law A");
+    }
+
+    function test_getCategoryCount_matchesCategoryCount() public {
+        assertEq(registry.getCategoryCount(), registry.categoryCount());
+        _createCategory("Governing Laws");
+        assertEq(registry.getCategoryCount(), registry.categoryCount());
+    }
+
+    function test_getCategoryIdAt_revertsPastEnd() public {
+        _createCategory("Governing Laws");
+
+        vm.expectRevert(abi.encodeWithSelector(DAARegistry.IndexOutOfRange.selector, 1, 1));
+        registry.getCategoryIdAt(1);
+    }
+
+    function test_getCategoryIdAt_revertsOnEmptyRegistry() public {
+        vm.expectRevert(abi.encodeWithSelector(DAARegistry.IndexOutOfRange.selector, 0, 0));
+        registry.getCategoryIdAt(0);
+    }
+
+    function test_getDocumentIdAt_revertsPastEnd() public {
+        _createCategory("Governing Laws");
+        _addNewDocument(0, "tx_a", HASH_A, "Law A", "", 0);
+
+        vm.expectRevert(abi.encodeWithSelector(DAARegistry.IndexOutOfRange.selector, 1, 1));
+        registry.getDocumentIdAt(0, 1);
+    }
+
+    function test_getDocumentIdAt_revertsOnUnknownCategory() public {
+        vm.expectRevert(abi.encodeWithSelector(DAARegistry.CategoryDoesNotExist.selector, 0));
+        registry.getDocumentIdAt(0, 0);
+    }
+
     // ──────────────── Fuzz Tests ────────────────────────────
 
     function testFuzz_addDocument_arbitraryDocType(uint8 docType) public {
