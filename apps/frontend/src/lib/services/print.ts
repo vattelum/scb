@@ -127,14 +127,48 @@ export async function fetchLegislation(
 	return legislation;
 }
 
+/**
+ * Render the assembled document into a hidden same-document iframe and raise
+ * the print dialog on it.
+ *
+ * Deliberately not a pop-up. window.open needs the click's user activation,
+ * which has long expired by the time decryption and the legislation fetches
+ * resolve, and it puts printing behind a per-site pop-up permission for no
+ * benefit. An iframe needs neither. The assembled HTML carries its own styles
+ * and references no external assets, so it is ready to print as soon as the
+ * document is closed.
+ */
 export function assembleAndPrint(params: AssemblyParams): void {
 	const html = assembleHtml(params);
-	const win = window.open('', '_blank');
-	if (!win) return;
 
-	win.document.write(html);
-	win.document.close();
-	win.onload = () => win.print();
+	const frame = document.createElement('iframe');
+	frame.setAttribute('aria-hidden', 'true');
+	frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+	document.body.appendChild(frame);
+
+	const doc = frame.contentDocument;
+	const win = frame.contentWindow;
+	if (!doc || !win) {
+		frame.remove();
+		throw new Error('Unable to prepare the print document.');
+	}
+
+	doc.open();
+	doc.write(html);
+	doc.close();
+
+	// Fires on both completion and cancellation, so the frame is always reclaimed.
+	win.onafterprint = () => frame.remove();
+
+	const run = () => {
+		win.focus();
+		win.print();
+	};
+
+	// close() can finish parsing before this runs, in which case load has already
+	// fired and an onload handler would never be called.
+	if (doc.readyState === 'complete') run();
+	else frame.onload = run;
 }
 
 function assembleHtml(params: AssemblyParams): string {
