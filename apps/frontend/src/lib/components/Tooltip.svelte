@@ -1,10 +1,10 @@
 <script lang="ts">
-	let { text, align = 'center', position = 'below', children } = $props<{
+	let { text, align = 'center', position = 'below', children }: {
 		text: string;
 		align?: 'center' | 'left' | 'right';
 		position?: 'below' | 'above';
 		children: any;
-	}>();
+	} = $props();
 
 	let visible = $state(false);
 

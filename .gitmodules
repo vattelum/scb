@@ -4,3 +4,9 @@
 [submodule "apps/contracts/lib/document-registry"]
 	path = apps/contracts/lib/document-registry
 	url = https://github.com/vattelum/document-registry
+[submodule "apps/contracts/lib/forge-std"]
+	path = apps/contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "apps/contracts/lib/openzeppelin-contracts"]
+	path = apps/contracts/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
