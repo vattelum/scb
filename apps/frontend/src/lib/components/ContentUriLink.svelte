@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { arweaveUrl } from '$lib/services/arweave';
+	import { arweaveUrl } from '#lib/services/arweave.ts';
 
 	interface Props {
 		uri: string;

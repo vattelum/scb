@@ -1,14 +1,14 @@
 import { readContract } from '@wagmi/core';
-import { config } from '$lib/services/wallet-config';
-import { DAARegistryABI } from '$lib/contracts';
-import { fetchFromArweave } from '$lib/services/arweave';
+import { config } from '#lib/services/wallet-config.ts';
+import { DAARegistryABI } from '#lib/contracts/index.ts';
+import { fetchFromArweave } from '#lib/services/arweave.ts';
 import {
 	markdownToSections,
 	sectionsToMarkdown,
 	parseDocument,
 	compareSectionNumbers,
 	type Section
-} from '$lib/services/markdown';
+} from '#lib/services/markdown.ts';
 
 export type LegislationStatus = 'InForce' | 'PartiallyAmended' | 'Repealed';
 

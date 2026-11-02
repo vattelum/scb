@@ -1,6 +1,6 @@
 import { readContract, writeContract, signTypedData, multicall } from '@wagmi/core';
-import { config } from '$lib/services/wallet-config';
-import { contractRegistryConfig, contractRegistryAddress } from '$lib/contracts';
+import { config } from '#lib/services/wallet-config.ts';
+import { contractRegistryConfig, contractRegistryAddress } from '#lib/contracts/index.ts';
 import { RELATION_GOVERNS, RELATION_REVISES } from '@vattelum/document-registry-js';
 
 const chainId = Number(import.meta.env.VITE_CHAIN_ID);

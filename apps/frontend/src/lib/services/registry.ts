@@ -1,15 +1,15 @@
 import { readContract } from '@wagmi/core';
-import { config } from '$lib/services/wallet-config';
-import { daaRegistryConfig, DAARegistryABI } from '$lib/contracts';
-import { fetchFromArweave } from '$lib/services/arweave';
-import { stripFrontmatter } from '$lib/services/format';
-import { markdownToSections, type Section } from '$lib/services/markdown';
+import { config } from '#lib/services/wallet-config.ts';
+import { daaRegistryConfig, DAARegistryABI } from '#lib/contracts/index.ts';
+import { fetchFromArweave } from '#lib/services/arweave.ts';
+import { stripFrontmatter } from '#lib/services/format.ts';
+import { markdownToSections, type Section } from '#lib/services/markdown.ts';
 import {
 	parseVariableSchema,
 	parseRoleSchema,
 	type TemplateVariable,
 	type TemplateRole
-} from '$lib/services/template-variables';
+} from '#lib/services/template-variables.ts';
 
 export interface CategoryInfo {
 	id: number;

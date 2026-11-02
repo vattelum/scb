@@ -7,7 +7,7 @@
  */
 import { readContract, writeContract, waitForTransactionReceipt } from '@wagmi/core';
 import { encodeFunctionData, encodeAbiParameters, parseAbiParameters, decodeAbiParameters, decodeEventLog, decodeFunctionData, type Hex, type PublicClient } from 'viem';
-import { config, getClient } from '$lib/services/wallet-config';
+import { config, getClient } from '#lib/services/wallet-config.ts';
 import {
 	sxSpaceAddress,
 	normalStrategyAddress,
@@ -17,9 +17,9 @@ import {
 	daaTokenConfig,
 	daaRegistryAddress,
 	daaRegistryConfig
-} from '$lib/contracts';
-import DAARegistryABI from '$lib/contracts/DAARegistry.abi.json';
-import { getPaginatedLogs } from '$lib/services/event-log-scanner';
+} from '#lib/contracts/index.ts';
+import DAARegistryABI from '#lib/contracts/DAARegistry.abi.json';
+import { getPaginatedLogs } from '#lib/services/event-log-scanner.ts';
 import { toFunctionSelector } from 'viem';
 
 // --- sx-evm ABIs (minimal, sourced from sx-evm contracts) ---

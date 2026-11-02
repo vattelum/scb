@@ -5,15 +5,15 @@
 		loadLegislationPackages,
 		type CategoryInfo,
 		type LegislationPackageInfo
-	} from '$lib/services/registry';
-	import { daaRegistryAddress, contractTemplateCategoryId } from '$lib/contracts';
-	import { RELATION_LABELS } from '$lib/constants/docTypes';
+	} from '#lib/services/registry.ts';
+	import { daaRegistryAddress, contractTemplateCategoryId } from '#lib/contracts/index.ts';
+	import { RELATION_LABELS } from '#lib/constants/docTypes.ts';
 	import {
 		RELATION_GOVERNS,
 		RELATION_IMPLEMENTS,
 		RELATION_REFERENCES
 	} from '@vattelum/document-registry-js';
-	import NetworkPicker from '$lib/components/NetworkPicker.svelte';
+	import NetworkPicker from '#lib/components/NetworkPicker.svelte';
 
 	type SelectedLegislation = {
 		title: string;

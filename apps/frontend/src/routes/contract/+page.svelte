@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { wallet } from '$lib/stores/wallet';
-	import ContractList from '$lib/components/ContractList.svelte';
-	import ContractCreateForm from '$lib/components/ContractCreateForm.svelte';
-	import ContractProposalBanner from '$lib/components/ContractProposalBanner.svelte';
-	import LegislationExpand from '$lib/components/LegislationExpand.svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import LoadingButton from '$lib/components/LoadingButton.svelte';
-	import Tooltip from '$lib/components/Tooltip.svelte';
+	import { wallet } from '#lib/stores/wallet.ts';
+	import ContractList from '#lib/components/ContractList.svelte';
+	import ContractCreateForm from '#lib/components/ContractCreateForm.svelte';
+	import ContractProposalBanner from '#lib/components/ContractProposalBanner.svelte';
+	import LegislationExpand from '#lib/components/LegislationExpand.svelte';
+	import Modal from '#lib/components/Modal.svelte';
+	import LoadingButton from '#lib/components/LoadingButton.svelte';
+	import Tooltip from '#lib/components/Tooltip.svelte';
 
 	const SCB_PROXY_WARNING = 'The bytecode hash is a snapshot of the contract at signing time. Proxy / upgradable contracts can swap their implementation later, which would invalidate this hash against the code actually running. Verify with the counterparty that the target is non-upgradable or that they accept upgrade risk.';
-	import { showToast } from '$lib/stores/toasts';
+	import { showToast } from '#lib/stores/toasts.ts';
 	import {
 		getContract,
 		getEvents,
@@ -48,18 +48,18 @@
 		type LifecycleEvent,
 		type DocumentReference,
 		type Proposal
-	} from '$lib/services/contract-registry';
-	import { decryptAsRecipient, type EciesBlob } from '$lib/services/ecies';
-	import { isRegistered, register as registerPubkey } from '$lib/services/pubkey-registry';
-	import { deriveLocalPubkey, derivePrivateScalar, clearScalarCache } from '$lib/services/pubkey-derivation';
-	import { assembleAndPrint, fetchLegislation, type PrintOptions } from '$lib/services/print';
+	} from '#lib/services/contract-registry.ts';
+	import { decryptAsRecipient, type EciesBlob } from '#lib/services/ecies.ts';
+	import { isRegistered, register as registerPubkey } from '#lib/services/pubkey-registry.ts';
+	import { deriveLocalPubkey, derivePrivateScalar, clearScalarCache } from '#lib/services/pubkey-derivation.ts';
+	import { assembleAndPrint, fetchLegislation, type PrintOptions } from '#lib/services/print.ts';
 	import { hashBody, RELATION_TEMPLATE } from '@vattelum/document-registry-js';
-	import { hashToBytes32 } from '$lib/services/hash';
-	import { contractRegistryAddress } from '$lib/contracts';
-	import { fetchFromArweave } from '$lib/services/arweave';
-	import { getClient } from '$lib/services/wallet-config';
-	import { truncAddr, formatDate, stripFrontmatter, extractRevisionMeta } from '$lib/services/format';
-	import { chainIdToLabel, chainIdToExplorer, formatNetwork } from '$lib/constants/networks';
+	import { hashToBytes32 } from '#lib/services/hash.ts';
+	import { contractRegistryAddress } from '#lib/contracts/index.ts';
+	import { fetchFromArweave } from '#lib/services/arweave.ts';
+	import { getClient } from '#lib/services/wallet-config.ts';
+	import { truncAddr, formatDate, stripFrontmatter, extractRevisionMeta } from '#lib/services/format.ts';
+	import { chainIdToLabel, chainIdToExplorer, formatNetwork } from '#lib/constants/networks.ts';
 	const chainId = Number(import.meta.env.VITE_CHAIN_ID);
 
 	const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';

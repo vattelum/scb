@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PRESET_NETWORKS } from '$lib/constants/networks';
+	import { PRESET_NETWORKS } from '#lib/constants/networks.ts';
 
 	let {
 		value = $bindable(0),

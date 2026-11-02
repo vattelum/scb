@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { wallet } from '$lib/stores/wallet';
+	import { wallet } from '#lib/stores/wallet.ts';
 	import ContentUriLink from './ContentUriLink.svelte';
-	import { statusLabel, strategyLabel } from '$lib/services/snapshot-x';
+	import { statusLabel, strategyLabel } from '#lib/services/snapshot-x.ts';
 	import type { ProposalCardData } from './ActiveProposalCard.svelte';
 
 	let {

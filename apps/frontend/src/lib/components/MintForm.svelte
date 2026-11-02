@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { readContract, writeContract, waitForTransactionReceipt } from '@wagmi/core';
-	import { config, checkRoles } from '$lib/services/wallet-config';
-	import { daaTokenConfig, daaRegistryConfig, termsCategoryId, termsDocumentId } from '$lib/contracts';
-	import { wallet } from '$lib/stores/wallet';
+	import { config, checkRoles } from '#lib/services/wallet-config.ts';
+	import { daaTokenConfig, daaRegistryConfig, termsCategoryId, termsDocumentId } from '#lib/contracts/index.ts';
+	import { wallet } from '#lib/stores/wallet.ts';
 	import { toHex, formatEther } from 'viem';
-	import { fetchFromArweave } from '$lib/services/arweave';
-	import { wrapSections } from '$lib/services/markdown';
+	import { fetchFromArweave } from '#lib/services/arweave.ts';
+	import { wrapSections } from '#lib/services/markdown.ts';
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
-	import Tooltip from '$lib/components/Tooltip.svelte';
-	import LoadingButton from '$lib/components/LoadingButton.svelte';
-	import { showToast } from '$lib/stores/toasts';
+	import Tooltip from '#lib/components/Tooltip.svelte';
+	import LoadingButton from '#lib/components/LoadingButton.svelte';
+	import { showToast } from '#lib/stores/toasts.ts';
 
 	let { onminted }: { onminted?: () => void } = $props();
 

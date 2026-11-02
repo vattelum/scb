@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { explorerTxUrl, explorerAddressUrl } from '$lib/constants/networks';
+	import { explorerTxUrl, explorerAddressUrl } from '#lib/constants/networks.ts';
 
 	interface Props {
 		chainId: number;

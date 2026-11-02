@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { docTypeLabel, allowsMultipleReferences, requiresReferences } from '$lib/constants/docTypes';
-	import { strategyLabel } from '$lib/services/snapshot-x';
-	import { formatCountdown } from '$lib/services/format';
-	import type { DocumentInfo } from '$lib/services/registry';
+	import { docTypeLabel, allowsMultipleReferences, requiresReferences } from '#lib/constants/docTypes.ts';
+	import { strategyLabel } from '#lib/services/snapshot-x.ts';
+	import { formatCountdown } from '#lib/services/format.ts';
+	import type { DocumentInfo } from '#lib/services/registry.ts';
 
 	interface VersionInfo {
 		version: number;

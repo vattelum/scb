@@ -1,14 +1,14 @@
 <script lang="ts">
 	import '../app.css';
-	import '$lib/services/wallet-config';
-	import '$lib/services/markdown';
-	import { wallet } from '$lib/stores/wallet';
-	import { connectWallet, disconnectWallet } from '$lib/services/wallet-config';
-	import { page } from '$app/stores';
+	import '#lib/services/wallet-config.ts';
+	import '#lib/services/markdown.ts';
+	import { wallet } from '#lib/stores/wallet.ts';
+	import { connectWallet, disconnectWallet } from '#lib/services/wallet-config.ts';
+	import { page } from '$app/state';
 	import { afterNavigate } from '$app/navigation';
-	import { truncAddr } from '$lib/services/format';
-	import Toaster from '$lib/components/Toaster.svelte';
-	import Footer from '$lib/components/Footer.svelte';
+	import { truncAddr } from '#lib/services/format.ts';
+	import Toaster from '#lib/components/Toaster.svelte';
+	import Footer from '#lib/components/Footer.svelte';
 
 	let { children } = $props();
 
@@ -37,7 +37,7 @@
 			{#each navItems as item}
 				<a
 					href={item.href}
-					class="text-sm font-medium transition-colors {$page.url.pathname === item.href
+					class="text-sm font-medium transition-colors {page.url.pathname === item.href
 						? 'text-text'
 						: 'text-text-secondary hover:text-text'}"
 				>

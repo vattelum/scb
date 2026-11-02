@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { formatNetwork, explorerAddressUrl } from '$lib/constants/networks';
+	import { formatNetwork, explorerAddressUrl } from '#lib/constants/networks.ts';
 
-	// Reads env vars directly (not via `$lib/contracts`) so this component is
-	// portable across repos: each repo's `$lib/contracts/index.ts` exports a
+	// Reads env vars directly (not via `#lib/contracts/index.ts`) so this component is
+	// portable across repos: each repo's `#lib/contracts/index.ts` exports a
 	// different set of symbols, but `import.meta.env.VITE_*` is uniform. To
 	// adopt in another repo, edit only the entries below to match that repo's
 	// deployed contracts. Missing/unset env vars are silently dropped by the

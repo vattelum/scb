@@ -1,3 +1,4 @@
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
@@ -8,9 +9,14 @@ export default defineConfig({
 	plugins: [
 		tailwindcss(),
 		nodePolyfills({
+			exclude: ['module'],
 			globals: { Buffer: true, global: true, process: true }
 		}),
-		sveltekit()
+		sveltekit({
+			adapter: adapter({
+				fallback: '200.html'
+			})
+		})
 	],
 	server: {
 		https: fs.existsSync('.dev-cert.pem')

@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { readContract } from '@wagmi/core';
-	import { config } from '$lib/services/wallet-config';
-	import { daaRegistryConfig, daaRegistryAddress } from '$lib/contracts';
-	import { fetchFromArweave } from '$lib/services/arweave';
-	import ContentUriLink from '$lib/components/ContentUriLink.svelte';
-	import { renderSectionedMarkdown } from '$lib/services/markdown';
-	import { loadCategories as fetchCategories, loadDocuments, loadAmendmentRestrictions } from '$lib/services/registry';
-	import Tooltip from '$lib/components/Tooltip.svelte';
-	import { docTypeLabel, relationLabel, RELATION_AMENDS, RELATION_REVISES, RELATION_REPEALS, RELATION_CODIFIES } from '$lib/constants/docTypes';
-	import { hasVariableSchema } from '$lib/services/template-variables';
-	import { formatDate, stripFrontmatter } from '$lib/services/format';
-	import CiteButton from '$lib/components/CiteButton.svelte';
-	import ExportCitationButton from '$lib/components/ExportCitationButton.svelte';
+	import { config } from '#lib/services/wallet-config.ts';
+	import { daaRegistryConfig, daaRegistryAddress } from '#lib/contracts/index.ts';
+	import { fetchFromArweave } from '#lib/services/arweave.ts';
+	import ContentUriLink from '#lib/components/ContentUriLink.svelte';
+	import { renderSectionedMarkdown } from '#lib/services/markdown.ts';
+	import { loadCategories as fetchCategories, loadDocuments, loadAmendmentRestrictions } from '#lib/services/registry.ts';
+	import Tooltip from '#lib/components/Tooltip.svelte';
+	import { docTypeLabel, relationLabel, RELATION_AMENDS, RELATION_REVISES, RELATION_REPEALS, RELATION_CODIFIES } from '#lib/constants/docTypes.ts';
+	import { hasVariableSchema } from '#lib/services/template-variables.ts';
+	import { formatDate, stripFrontmatter } from '#lib/services/format.ts';
+	import CiteButton from '#lib/components/CiteButton.svelte';
+	import ExportCitationButton from '#lib/components/ExportCitationButton.svelte';
 
 	interface Reference {
 		registryAddress: string;

@@ -1,7 +1,7 @@
 import type { AbiEvent } from 'viem';
-import { getClient } from '$lib/services/wallet-config';
-import { contractRegistryAddress, contractRegistryConfig } from '$lib/contracts';
-import type { ContractListRead } from '$lib/services/contract-registry';
+import { getClient } from '#lib/services/wallet-config.ts';
+import { contractRegistryAddress, contractRegistryConfig } from '#lib/contracts/index.ts';
+import type { ContractListRead } from '#lib/services/contract-registry.ts';
 
 const chainId = Number(import.meta.env.VITE_CHAIN_ID);
 const deployBlock = import.meta.env.VITE_DEPLOY_BLOCK

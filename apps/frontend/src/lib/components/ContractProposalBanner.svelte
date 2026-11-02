@@ -1,7 +1,7 @@
 <script lang="ts">
-	import LoadingButton from '$lib/components/LoadingButton.svelte';
-	import { truncAddr, formatDate } from '$lib/services/format';
-	import { isProposalRipe, type Proposal } from '$lib/services/contract-registry';
+	import LoadingButton from '#lib/components/LoadingButton.svelte';
+	import { truncAddr, formatDate } from '#lib/services/format.ts';
+	import { isProposalRipe, type Proposal } from '#lib/services/contract-registry.ts';
 
 	// Actions split by viewer identity:
 	// - Proposer: Cancel proposal.

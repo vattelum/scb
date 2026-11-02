@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { RELATION_REFERENCES } from '@vattelum/document-registry-js';
-	import { chainIdToLabel } from '$lib/constants/networks';
-	import { downloadCitationJson } from '$lib/services/exportCitation';
+	import { chainIdToLabel } from '#lib/constants/networks.ts';
+	import { downloadCitationJson } from '#lib/services/exportCitation.ts';
 
 	let {
 		title,

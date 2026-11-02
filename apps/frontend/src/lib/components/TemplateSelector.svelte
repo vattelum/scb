@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { DocumentInfo } from '$lib/services/registry';
-	import Tooltip from '$lib/components/Tooltip.svelte';
+	import type { DocumentInfo } from '#lib/services/registry.ts';
+	import Tooltip from '#lib/components/Tooltip.svelte';
 
 	let {
 		templates,

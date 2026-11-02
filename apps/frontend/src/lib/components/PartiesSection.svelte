@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { type TemplateRole } from '$lib/services/template-variables';
-	import { type PartyBindings } from '$lib/services/party';
-	import PartyBlock from '$lib/components/PartyBlock.svelte';
+	import { type TemplateRole } from '#lib/services/template-variables.ts';
+	import { type PartyBindings } from '#lib/services/party.ts';
+	import PartyBlock from '#lib/components/PartyBlock.svelte';
 
 	let {
 		templateRoles,

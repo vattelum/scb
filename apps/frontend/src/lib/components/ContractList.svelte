@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { wallet } from '$lib/stores/wallet';
+	import { wallet } from '#lib/stores/wallet.ts';
 	import {
 		getContractsByParty,
 		getContractCount,
@@ -11,15 +11,15 @@
 		StatusLabels,
 		type ContractListRead,
 		type DocumentReference
-	} from '$lib/services/contract-registry';
+	} from '#lib/services/contract-registry.ts';
 	import {
 		getCached,
 		setCached,
 		isCacheFresh,
 		cleanupOldEntries,
 		scanAndInvalidate
-	} from '$lib/services/contract-state-cache';
-	import { formatDate } from '$lib/services/format';
+	} from '#lib/services/contract-state-cache.ts';
+	import { formatDate } from '#lib/services/format.ts';
 
 	interface ContractListItem {
 		id: bigint;

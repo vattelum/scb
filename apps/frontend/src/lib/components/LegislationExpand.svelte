@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { resolveLegislation, type ResolvedLegislation } from '$lib/services/legislation-resolver';
-	import type { DocumentReference } from '$lib/services/contract-registry';
-	import { truncAddr } from '$lib/services/format';
-	import { RELATION_LABELS } from '$lib/constants/docTypes';
+	import { resolveLegislation, type ResolvedLegislation } from '#lib/services/legislation-resolver.ts';
+	import type { DocumentReference } from '#lib/services/contract-registry.ts';
+	import { truncAddr } from '#lib/services/format.ts';
+	import { RELATION_LABELS } from '#lib/constants/docTypes.ts';
 
 	let {
 		reference,

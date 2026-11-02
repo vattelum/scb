@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { slugifyRoleKey, type TemplateRole } from '$lib/services/template-variables';
+	import { slugifyRoleKey, type TemplateRole } from '#lib/services/template-variables.ts';
 
 	let { roles = $bindable<TemplateRole[]>([]) }: { roles: TemplateRole[] } = $props();
 

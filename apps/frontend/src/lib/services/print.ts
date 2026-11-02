@@ -1,12 +1,12 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import type { ContractRecord, LifecycleEvent, DocumentReference } from '$lib/services/contract-registry';
-import { StatusLabels } from '$lib/services/contract-registry';
-import { arweaveUrl } from '$lib/services/arweave';
-import { stripFrontmatter, extractRevisionMeta, formatDate } from '$lib/services/format';
-import { daaRegistryAddress } from '$lib/contracts';
-import { chainIdToExplorer, explorerAddressUrl, formatNetwork } from '$lib/constants/networks';
-import { RELATION_LABELS } from '$lib/constants/docTypes';
+import type { ContractRecord, LifecycleEvent, DocumentReference } from '#lib/services/contract-registry.ts';
+import { StatusLabels } from '#lib/services/contract-registry.ts';
+import { arweaveUrl } from '#lib/services/arweave.ts';
+import { stripFrontmatter, extractRevisionMeta, formatDate } from '#lib/services/format.ts';
+import { daaRegistryAddress } from '#lib/contracts/index.ts';
+import { chainIdToExplorer, explorerAddressUrl, formatNetwork } from '#lib/constants/networks.ts';
+import { RELATION_LABELS } from '#lib/constants/docTypes.ts';
 import {
 	RELATION_AMENDS,
 	RELATION_REVISES,
@@ -19,7 +19,7 @@ import {
 	resolveLegislation,
 	type ComponentVersion,
 	type LegislationStatus
-} from '$lib/services/legislation-resolver';
+} from '#lib/services/legislation-resolver.ts';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 

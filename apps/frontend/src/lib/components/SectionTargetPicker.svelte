@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { TemplateVariable } from '$lib/services/template-variables';
+	import type { TemplateVariable } from '#lib/services/template-variables.ts';
 
 	export interface TargetSectionInfo {
 		number: string;

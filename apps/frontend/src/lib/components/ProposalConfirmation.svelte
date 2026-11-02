@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ContentUriLink from '$lib/components/ContentUriLink.svelte';
-	import ExplorerLink from '$lib/components/ExplorerLink.svelte';
+	import ContentUriLink from '#lib/components/ContentUriLink.svelte';
+	import ExplorerLink from '#lib/components/ExplorerLink.svelte';
 
 	export interface ProposalConfirmationData {
 		txHash: string;

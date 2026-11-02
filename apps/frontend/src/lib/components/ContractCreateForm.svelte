@@ -1,24 +1,24 @@
 <script lang="ts">
-	import { wallet } from '$lib/stores/wallet';
+	import { wallet } from '#lib/stores/wallet.ts';
 	import {
 		createContract,
 		type DocumentReference,
 		type CreateContractParams
-	} from '$lib/services/contract-registry';
-	import { encryptForRecipients, type RecipientPubkey } from '$lib/services/ecies';
-	import { getPubkey, clearPubkeyCache } from '$lib/services/pubkey-registry';
+	} from '#lib/services/contract-registry.ts';
+	import { encryptForRecipients, type RecipientPubkey } from '#lib/services/ecies.ts';
+	import { getPubkey, clearPubkeyCache } from '#lib/services/pubkey-registry.ts';
 	import { hashBody, canonicalizeBody, RELATION_TEMPLATE, RELATION_REVISES } from '@vattelum/document-registry-js';
-	import { hashToBytes32 } from '$lib/services/hash';
-	import { uploadDocument, verifyTurboHas } from '$lib/services/arweave';
-	import { contractRegistryAddress } from '$lib/contracts';
-	import { loadDocuments, loadDocumentBody, type DocumentInfo } from '$lib/services/registry';
+	import { hashToBytes32 } from '#lib/services/hash.ts';
+	import { uploadDocument, verifyTurboHas } from '#lib/services/arweave.ts';
+	import { contractRegistryAddress } from '#lib/contracts/index.ts';
+	import { loadDocuments, loadDocumentBody, type DocumentInfo } from '#lib/services/registry.ts';
 	import { readContract } from '@wagmi/core';
-	import { config } from '$lib/services/wallet-config';
-	import { daaRegistryAddress, daaTokenConfig, contractTemplateCategoryId } from '$lib/contracts';
-	import { getClient } from '$lib/services/wallet-config';
-	import { stripFrontmatter, formatISODate } from '$lib/services/format';
-	import { validateMarkdownUpload, MarkdownUnsafeError } from '$lib/services/markdown';
-	import { type TemplateRole } from '$lib/services/template-variables';
+	import { config } from '#lib/services/wallet-config.ts';
+	import { daaRegistryAddress, daaTokenConfig, contractTemplateCategoryId } from '#lib/contracts/index.ts';
+	import { getClient } from '#lib/services/wallet-config.ts';
+	import { stripFrontmatter, formatISODate } from '#lib/services/format.ts';
+	import { validateMarkdownUpload, MarkdownUnsafeError } from '#lib/services/markdown.ts';
+	import { type TemplateRole } from '#lib/services/template-variables.ts';
 	import {
 		renderParties,
 		serializePartiesYaml,
@@ -28,16 +28,16 @@
 		INDIVIDUAL_FIELD_LABELS,
 		ENTITY_FIELD_LABELS,
 		type PartyBindings
-	} from '$lib/services/party';
-	import PartiesSection from '$lib/components/PartiesSection.svelte';
+	} from '#lib/services/party.ts';
+	import PartiesSection from '#lib/components/PartiesSection.svelte';
 	import { isAddress } from 'viem';
-	import LoadingButton from '$lib/components/LoadingButton.svelte';
-	import StorageModeToggle from '$lib/components/StorageModeToggle.svelte';
-	import TemplateSelector from '$lib/components/TemplateSelector.svelte';
-	import ScbSection from '$lib/components/ScbSection.svelte';
-	import VariablesSection from '$lib/components/VariablesSection.svelte';
-	import LegislationPicker from '$lib/components/LegislationPicker.svelte';
-	import { showToast } from '$lib/stores/toasts';
+	import LoadingButton from '#lib/components/LoadingButton.svelte';
+	import StorageModeToggle from '#lib/components/StorageModeToggle.svelte';
+	import TemplateSelector from '#lib/components/TemplateSelector.svelte';
+	import ScbSection from '#lib/components/ScbSection.svelte';
+	import VariablesSection from '#lib/components/VariablesSection.svelte';
+	import LegislationPicker from '#lib/components/LegislationPicker.svelte';
+	import { showToast } from '#lib/stores/toasts.ts';
 
 	const chainId = Number(import.meta.env.VITE_CHAIN_ID);
 
@@ -581,7 +581,7 @@ references:${refsYaml}${partiesYaml}
 			pendingContentUri = null;
 			pendingContentHash = null;
 
-			const count = await import('$lib/services/contract-registry').then(m => m.getContractCount());
+			const count = await import('#lib/services/contract-registry.ts').then(m => m.getContractCount());
 			createdContractId = count;
 
 			downloadArchiveMd(count, contentHash, completeDoc, signatories, references);

@@ -1,6 +1,6 @@
 import { readContract, writeContract } from '@wagmi/core';
-import { config } from '$lib/services/wallet-config';
-import { pubkeyRegistryConfig } from '$lib/contracts';
+import { config } from '#lib/services/wallet-config.ts';
+import { pubkeyRegistryConfig } from '#lib/contracts/index.ts';
 
 const cache = new Map<string, `0x${string}` | null>();
 

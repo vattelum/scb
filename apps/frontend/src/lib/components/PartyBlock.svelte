@@ -1,15 +1,15 @@
 <script lang="ts">
-	import type { TemplateRole } from '$lib/services/template-variables';
+	import type { TemplateRole } from '#lib/services/template-variables.ts';
 	import type {
 		PartyBinding,
 		IndividualOptionalKey,
 		EntityOptionalKey
-	} from '$lib/services/party';
+	} from '#lib/services/party.ts';
 	import {
 		emptyEntityBinding,
 		INDIVIDUAL_OPTIONAL_KEYS,
 		ENTITY_OPTIONAL_KEYS
-	} from '$lib/services/party';
+	} from '#lib/services/party.ts';
 	import { isAddress } from 'viem';
 
 	let {

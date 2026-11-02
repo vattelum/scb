@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { toasts, dismissToast, type ToastKind } from '$lib/stores/toasts';
+	import { toasts, dismissToast, type ToastKind } from '#lib/stores/toasts.ts';
 
 	function toastClass(kind: ToastKind) {
 		switch (kind) {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import LoadingButton from '$lib/components/LoadingButton.svelte';
+	import Modal from '#lib/components/Modal.svelte';
+	import LoadingButton from '#lib/components/LoadingButton.svelte';
 
 	interface Props {
 		title: string;

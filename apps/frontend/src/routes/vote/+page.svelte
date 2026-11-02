@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { fetchFromArweave } from '$lib/services/arweave';
-	import ActiveProposalCard from '$lib/components/ActiveProposalCard.svelte';
-	import PassedProposalCard from '$lib/components/PassedProposalCard.svelte';
-	import { renderSectionedMarkdown } from '$lib/services/markdown';
-	import { loadCategories, loadDocuments } from '$lib/services/registry';
-	import { wallet } from '$lib/stores/wallet';
-	import Tooltip from '$lib/components/Tooltip.svelte';
-	import { docTypeLabel } from '$lib/constants/docTypes';
-	import { parseVariableSchema, type TemplateVariable } from '$lib/services/template-variables';
-	import { stripFrontmatter } from '$lib/services/format';
+	import { fetchFromArweave } from '#lib/services/arweave.ts';
+	import ActiveProposalCard from '#lib/components/ActiveProposalCard.svelte';
+	import PassedProposalCard from '#lib/components/PassedProposalCard.svelte';
+	import { renderSectionedMarkdown } from '#lib/services/markdown.ts';
+	import { loadCategories, loadDocuments } from '#lib/services/registry.ts';
+	import { wallet } from '#lib/stores/wallet.ts';
+	import Tooltip from '#lib/components/Tooltip.svelte';
+	import { docTypeLabel } from '#lib/constants/docTypes.ts';
+	import { parseVariableSchema, type TemplateVariable } from '#lib/services/template-variables.ts';
+	import { stripFrontmatter } from '#lib/services/format.ts';
 	import {
 		getProposals,
 		getApprovalThreshold,
@@ -27,10 +27,10 @@
 		type ProposalInfo,
 		type RestrictionMetadata,
 		type StrategyQuorums
-	} from '$lib/services/snapshot-x';
-	import { normalStrategyAddress, coreStrategyAddress } from '$lib/contracts';
-	import { chainIdToBlockTime } from '$lib/constants/networks';
-	import { showToast } from '$lib/stores/toasts';
+	} from '#lib/services/snapshot-x.ts';
+	import { normalStrategyAddress, coreStrategyAddress } from '#lib/contracts/index.ts';
+	import { chainIdToBlockTime } from '#lib/constants/networks.ts';
+	import { showToast } from '#lib/stores/toasts.ts';
 
 	// Per-chain average block time — Sepolia/Mainnet ~12s, Base/Polygon ~2s,
 	// Arbitrum ~0.25s. Hardcoding 12 here would make the /vote countdown wrong
@@ -189,7 +189,7 @@
 			coreParticipation = cp;
 
 			// Get current block
-			const client = (await import('$lib/services/wallet-config')).getClient();
+			const client = (await import('#lib/services/wallet-config.ts')).getClient();
 			if (client) {
 				const block = await client.getBlockNumber();
 				currentBlock = Number(block);
@@ -346,7 +346,7 @@
 		// on Arbitrum.
 		blockRefreshInterval = setInterval(async () => {
 			try {
-				const client = (await import('$lib/services/wallet-config')).getClient();
+				const client = (await import('#lib/services/wallet-config.ts')).getClient();
 				if (client) {
 					const prevBlock = currentBlock;
 					const block = await client.getBlockNumber();

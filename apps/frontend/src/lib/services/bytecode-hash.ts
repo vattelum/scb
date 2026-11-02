@@ -1,5 +1,5 @@
 import { createPublicClient, http, keccak256 } from 'viem';
-import { chainIdToRpc } from '$lib/constants/networks';
+import { chainIdToRpc } from '#lib/constants/networks.ts';
 
 /**
  * Fetch the deployed runtime bytecode of a contract on a specific chain.

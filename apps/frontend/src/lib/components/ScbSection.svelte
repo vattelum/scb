@@ -7,10 +7,10 @@
 -->
 <script lang="ts">
 	import { isAddress } from 'viem';
-	import { formatNetwork } from '$lib/constants/networks';
-	import { fetchAndHashBytecode } from '$lib/services/bytecode-hash';
-	import NetworkPicker from '$lib/components/NetworkPicker.svelte';
-	import Tooltip from '$lib/components/Tooltip.svelte';
+	import { formatNetwork } from '#lib/constants/networks.ts';
+	import { fetchAndHashBytecode } from '#lib/services/bytecode-hash.ts';
+	import NetworkPicker from '#lib/components/NetworkPicker.svelte';
+	import Tooltip from '#lib/components/Tooltip.svelte';
 
 	const PROXY_WARNING = 'The bytecode hash is a snapshot of the contract at signing time. Proxy / upgradable contracts can swap their implementation later, which would invalidate this hash against the code actually running. Verify with the counterparty that the target is non-upgradable or that they accept upgrade risk.';
 

@@ -1,6 +1,6 @@
 <script lang="ts" module>
-	import type { ProposalStatus as PS, RestrictionMetadata } from '$lib/services/snapshot-x';
-	import type { TemplateVariable } from '$lib/services/template-variables';
+	import type { ProposalStatus as PS, RestrictionMetadata } from '#lib/services/snapshot-x.ts';
+	import type { TemplateVariable } from '#lib/services/template-variables.ts';
 
 	/**
 	 * Enriched proposal shape used by /vote's card components. Extends the raw
@@ -38,9 +38,9 @@
 </script>
 
 <script lang="ts">
-	import { wallet } from '$lib/stores/wallet';
+	import { wallet } from '#lib/stores/wallet.ts';
 	import ContentUriLink from './ContentUriLink.svelte';
-	import { truncAddr } from '$lib/services/format';
+	import { truncAddr } from '#lib/services/format.ts';
 	import {
 		ProposalStatus,
 		VoteChoice,
@@ -51,7 +51,7 @@
 		votingContext,
 		votingContextClass,
 		type StrategyQuorums
-	} from '$lib/services/snapshot-x';
+	} from '#lib/services/snapshot-x.ts';
 
 	let {
 		proposal,

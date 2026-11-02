@@ -1,8 +1,8 @@
 import { signTypedData } from '@wagmi/core';
 import { keccak256, type Hex } from 'viem';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { config } from '$lib/services/wallet-config';
-import { pubkeyRegistryAddress } from '$lib/contracts';
+import { config } from '#lib/services/wallet-config.ts';
+import { pubkeyRegistryAddress } from '#lib/contracts/index.ts';
 
 const chainId = Number(import.meta.env.VITE_CHAIN_ID);
 

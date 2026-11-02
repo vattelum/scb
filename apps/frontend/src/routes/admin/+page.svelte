@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { wallet } from '$lib/stores/wallet';
+	import { wallet } from '#lib/stores/wallet.ts';
 	import { writeContract, waitForTransactionReceipt } from '@wagmi/core';
-	import { config, checkRoles } from '$lib/services/wallet-config';
-	import { daaTokenConfig } from '$lib/contracts';
-	import MintForm from '$lib/components/MintForm.svelte';
-	import MemberList from '$lib/components/MemberList.svelte';
-	import LoadingButton from '$lib/components/LoadingButton.svelte';
-	import { showToast } from '$lib/stores/toasts';
+	import { config, checkRoles } from '#lib/services/wallet-config.ts';
+	import { daaTokenConfig } from '#lib/contracts/index.ts';
+	import MintForm from '#lib/components/MintForm.svelte';
+	import MemberList from '#lib/components/MemberList.svelte';
+	import LoadingButton from '#lib/components/LoadingButton.svelte';
+	import { showToast } from '#lib/stores/toasts.ts';
 
 	let refreshKey = $state(0);
 	let memberList = $state<ReturnType<typeof MemberList>>();

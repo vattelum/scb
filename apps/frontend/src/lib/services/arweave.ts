@@ -1,7 +1,7 @@
 import { signMessage, sendTransaction, getConnectorClient } from '@wagmi/core';
-import { config } from '$lib/services/wallet-config';
+import { config } from '#lib/services/wallet-config.ts';
 import { hashBody } from '@vattelum/document-registry-js';
-import { stripFrontmatter } from '$lib/services/format';
+import { stripFrontmatter } from '#lib/services/format.ts';
 
 // Turbo's official upload service. Same URL the @ardrive/turbo-sdk uses
 // internally (defaultUploadServiceURL); pinned here so verifyTurboHas and

@@ -10,9 +10,9 @@ import {
 } from '@wagmi/core';
 import { mainnet, sepolia, base, optimism, polygon, arbitrum } from 'viem/chains';
 import { injected } from '@wagmi/connectors';
-import { wallet } from '$lib/stores/wallet';
-import { resetTurbo } from '$lib/services/arweave';
-import { daaTokenConfig, daaRegistryConfig } from '$lib/contracts';
+import { wallet } from '#lib/stores/wallet.ts';
+import { resetTurbo } from '#lib/services/arweave.ts';
+import { daaTokenConfig, daaRegistryConfig } from '#lib/contracts/index.ts';
 
 const chainId = Number(import.meta.env.VITE_CHAIN_ID);
 const rpcUrl = import.meta.env.VITE_RPC_URL as string;

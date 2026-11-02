@@ -10,7 +10,7 @@
 		nextChildNumber,
 		nextSiblingNumber,
 		sortByFixedNumber
-	} from '$lib/services/markdown';
+	} from '#lib/services/markdown.ts';
 
 	let {
 		sections = $bindable<Section[]>([]),

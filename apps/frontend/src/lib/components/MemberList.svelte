@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getClient } from '$lib/services/wallet-config';
-	import { daaTokenAddress } from '$lib/contracts';
+	import { getClient } from '#lib/services/wallet-config.ts';
+	import { daaTokenAddress } from '#lib/contracts/index.ts';
 	import { parseAbiItem, type PublicClient } from 'viem';
-	import { getPaginatedLogs } from '$lib/services/event-log-scanner';
+	import { getPaginatedLogs } from '#lib/services/event-log-scanner.ts';
 
 	const deployBlock = BigInt(import.meta.env.VITE_DEPLOY_BLOCK || '0');
 

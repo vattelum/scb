@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { formatCitation, RELATION_REFERENCES } from '@vattelum/document-registry-js';
-	import { chainIdToLabel } from '$lib/constants/networks';
+	import { chainIdToLabel } from '#lib/constants/networks.ts';
 
 	let {
 		title,
