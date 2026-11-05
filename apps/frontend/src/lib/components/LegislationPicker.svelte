@@ -13,21 +13,18 @@
 		RELATION_IMPLEMENTS,
 		RELATION_REFERENCES
 	} from '@vattelum/document-registry-js';
+	import { chainIdToLabel, chainIdToRpc } from '#lib/constants/networks.ts';
+	import { EXTERNAL_URI } from '#lib/services/contract-package.ts';
+	import type { PickedEntry, PickedRegistryLaw } from '#lib/services/contract-create.ts';
 	import NetworkPicker from '#lib/components/NetworkPicker.svelte';
-
-	type SelectedLegislation = {
-		title: string;
-		categoryId: number;
-		documentId: number;
-		version: number;
-		relationType: number;
-		registryAddress: `0x${string}`;
-		chainId?: number;
-	};
 
 	const chainId = Number(import.meta.env.VITE_CHAIN_ID);
 
-	let { selectedLegislation = $bindable() }: { selectedLegislation: SelectedLegislation[] } = $props();
+	let { selectedLegislation = $bindable() }: { selectedLegislation: PickedEntry[] } = $props();
+
+	const registryEntries = $derived(
+		selectedLegislation.filter((l): l is PickedRegistryLaw => l.kind === 'registry')
+	);
 
 	let legCategories = $state<CategoryInfo[]>([]);
 	let legCategoryId = $state(-1);
@@ -35,7 +32,7 @@
 	let legLoadingDocs = $state(false);
 	let legRelationType = $state(RELATION_GOVERNS);
 
-	let legRegistryMode = $state<'local' | 'external'>('local');
+	let legRegistryMode = $state<'local' | 'external' | 'document'>('local');
 	let extRegistryAddress = $state('');
 	let extChainId = $state(chainId);
 	let extCategories = $state<CategoryInfo[]>([]);
@@ -46,6 +43,11 @@
 	let extError = $state('');
 	let loadError = $state('');
 
+	let extDocTitle = $state('');
+	let extDocUri = $state('');
+	let extDocHash = $state('');
+	let extDocError = $state('');
+
 	$effect(() => {
 		if (legCategories.length === 0) loadLegislationCategories();
 	});
@@ -54,7 +56,7 @@
 		try {
 			const allCats = await loadCategories();
 			legCategories = allCats.filter((c) => c.id !== contractTemplateCategoryId);
-			refineCategoryCounts(legCategories, undefined, (next) => (legCategories = next));
+			refineCategoryCounts(legCategories, undefined, undefined, (next) => (legCategories = next));
 		} catch {
 			loadError = 'Failed to load legislation categories';
 		}
@@ -67,12 +69,13 @@
 	async function refineCategoryCounts(
 		cats: CategoryInfo[],
 		registry: `0x${string}` | undefined,
+		onChain: number | undefined,
 		commit: (next: CategoryInfo[]) => void
 	) {
 		const filtered = await Promise.all(
 			cats.map(async (c) => {
 				try {
-					const pkgs = await loadLegislationPackages(c.id, registry);
+					const pkgs = await loadLegislationPackages(c.id, registry, onChain);
 					return { ...c, documentCount: pkgs.length };
 				} catch {
 					return c;
@@ -102,16 +105,21 @@
 			extError = 'Enter a valid registry address (0x...)';
 			return;
 		}
+		if (extChainId !== chainId && !chainIdToRpc(extChainId)) {
+			extError = `No public RPC is configured for chain ${extChainId}, so its registries cannot be read.`;
+			return;
+		}
 		extError = '';
 		extLoadingCats = true;
 		extCategories = [];
 		extPackages = [];
 		extCategoryId = -1;
 		try {
-			extCategories = await loadCategoriesFrom(addr as `0x${string}`);
+			extCategories = await loadCategoriesFrom(addr as `0x${string}`, extChainId);
 			refineCategoryCounts(
 				extCategories,
 				addr as `0x${string}`,
+				extChainId,
 				(next) => (extCategories = next)
 			);
 		} catch {
@@ -127,7 +135,7 @@
 		if (catId < 0) return;
 		extLoadingDocs = true;
 		try {
-			extPackages = await loadLegislationPackages(catId, extRegistryAddress.trim() as `0x${string}`);
+			extPackages = await loadLegislationPackages(catId, extRegistryAddress.trim() as `0x${string}`, extChainId);
 		} catch {
 			extError = 'Failed to load documents from external registry.';
 		} finally {
@@ -138,51 +146,57 @@
 	function addExternalLegislation(pkg: LegislationPackageInfo) {
 		const addr = extRegistryAddress.trim() as `0x${string}`;
 		const extChain = extChainId || chainId;
-		const already = selectedLegislation.some(
+		const already = registryEntries.some(
 			(l) => l.registryAddress.toLowerCase() === addr.toLowerCase() && l.categoryId === pkg.categoryId && l.documentId === pkg.documentId
 		);
 		if (already) return;
 		selectedLegislation = [
 			...selectedLegislation,
 			{
+				kind: 'registry',
 				title: pkg.title,
 				categoryId: pkg.categoryId,
 				documentId: pkg.documentId,
 				version: pkg.versionCount,
 				relationType: legRelationType,
 				registryAddress: addr,
-				chainId: extChain
+				chainId: extChain,
+				categoryName: extCategories.find((c) => c.id === pkg.categoryId)?.name ?? '',
+				networkName: chainIdToLabel(extChain),
+				include: 'text'
 			}
 		];
-		legRelationType = RELATION_GOVERNS;
 	}
 
 	function addLegislation(pkg: LegislationPackageInfo) {
-		const already = selectedLegislation.some(
+		const already = registryEntries.some(
 			(l) => l.categoryId === pkg.categoryId && l.documentId === pkg.documentId
 		);
 		if (already) return;
 		selectedLegislation = [
 			...selectedLegislation,
 			{
+				kind: 'registry',
 				title: pkg.title,
 				categoryId: pkg.categoryId,
 				documentId: pkg.documentId,
 				version: pkg.versionCount,
 				relationType: legRelationType,
-				registryAddress: daaRegistryAddress
+				registryAddress: daaRegistryAddress,
+				categoryName: legCategories.find((c) => c.id === pkg.categoryId)?.name ?? '',
+				networkName: chainIdToLabel(chainId),
+				include: 'text'
 			}
 		];
-		legRelationType = RELATION_GOVERNS;
 	}
 
 	const codificationOverlap = $derived.by(() => {
 		const notes: string[] = [];
-		const selectedKey = (l: SelectedLegislation) =>
+		const selectedKey = (l: PickedRegistryLaw) =>
 			`${l.registryAddress.toLowerCase()}/${l.categoryId}/${l.documentId}`;
-		const selectedKeys = new Set(selectedLegislation.map(selectedKey));
+		const selectedKeys = new Set(registryEntries.map(selectedKey));
 		const allPackages = [...legPackages, ...extPackages];
-		for (const leg of selectedLegislation) {
+		for (const leg of registryEntries) {
 			const pkg = allPackages.find(
 				(p) => p.categoryId === leg.categoryId && p.documentId === leg.documentId
 			);
@@ -214,6 +228,37 @@
 	function removeLegislation(index: number) {
 		selectedLegislation = selectedLegislation.filter((_, i) => i !== index);
 	}
+
+	function moveLegislation(index: number, delta: -1 | 1) {
+		const next = [...selectedLegislation];
+		[next[index], next[index + delta]] = [next[index + delta], next[index]];
+		selectedLegislation = next;
+	}
+
+	function setInclude(index: number, include: PickedRegistryLaw['include']) {
+		selectedLegislation = selectedLegislation.map((l, i) =>
+			i === index && l.kind === 'registry' ? { ...l, include } : l
+		);
+	}
+
+	function addExternalDocument() {
+		const title = extDocTitle.replace(/\s+/g, ' ').trim();
+		const uri = extDocUri.trim();
+		const hash = extDocHash.trim().toLowerCase().replace(/^0x/, '');
+		if (!title) {
+			extDocError = 'Enter a title.';
+		} else if (!EXTERNAL_URI.test(uri)) {
+			extDocError = 'The link must start with ipfs://, https:// or ar://.';
+		} else if (!/^[0-9a-f]{64}$/.test(hash)) {
+			extDocError = 'The hash must be a SHA-256: 64 hexadecimal characters.';
+		} else {
+			selectedLegislation = [...selectedLegislation, { kind: 'external', title, uri, hash }];
+			extDocTitle = '';
+			extDocUri = '';
+			extDocHash = '';
+			extDocError = '';
+		}
+	}
 </script>
 
 <div class="border border-border rounded-lg p-4">
@@ -233,8 +278,15 @@
 		>
 			External Registry
 		</button>
+		<button
+			onclick={() => { legRegistryMode = 'document'; }}
+			class="text-xs px-3 py-1 rounded transition-colors cursor-pointer {legRegistryMode === 'document' ? 'bg-primary text-text' : 'bg-surface hover:bg-surface-hover border border-border text-text-secondary'}"
+		>
+			External Document
+		</button>
 	</div>
 
+	{#if legRegistryMode !== 'document'}
 	<div class="mb-2">
 		<select
 			bind:value={legRelationType}
@@ -245,6 +297,7 @@
 			<option value={RELATION_REFERENCES}>Reference</option>
 		</select>
 	</div>
+	{/if}
 
 	{#if legRegistryMode === 'local'}
 		<div class="mb-2">
@@ -264,7 +317,7 @@
 		{:else if legCategoryId >= 0 && legPackages.length > 0}
 			<div class="flex flex-col gap-1">
 				{#each legPackages as pkg}
-					{@const alreadyAdded = selectedLegislation.some(l => l.registryAddress === daaRegistryAddress && l.categoryId === pkg.categoryId && l.documentId === pkg.documentId)}
+					{@const alreadyAdded = registryEntries.some(l => l.registryAddress === daaRegistryAddress && l.categoryId === pkg.categoryId && l.documentId === pkg.documentId)}
 					<button
 						onclick={() => addLegislation(pkg)}
 						disabled={alreadyAdded}
@@ -289,6 +342,33 @@
 		{:else if legCategoryId >= 0}
 			<p class="text-text-muted text-xs">No documents in this category.</p>
 		{/if}
+	{:else if legRegistryMode === 'document'}
+		<div class="flex flex-col gap-2">
+			<input
+				bind:value={extDocTitle}
+				placeholder="Title"
+				class="bg-surface border border-border rounded px-3 py-1.5 text-sm text-text"
+			/>
+			<input
+				bind:value={extDocUri}
+				placeholder="Link (ipfs://, https:// or ar://)"
+				class="bg-surface border border-border rounded px-3 py-1.5 text-sm text-text font-mono"
+			/>
+			<input
+				bind:value={extDocHash}
+				placeholder="SHA-256 hash (64 hex characters)"
+				class="bg-surface border border-border rounded px-3 py-1.5 text-sm text-text font-mono"
+			/>
+			{#if extDocError}
+				<p class="text-red-400 text-xs">{extDocError}</p>
+			{/if}
+			<button
+				onclick={addExternalDocument}
+				class="self-start bg-primary hover:bg-primary-hover text-text text-sm px-4 py-1.5 rounded transition-colors cursor-pointer"
+			>
+				Add document
+			</button>
+		</div>
 	{:else}
 		<div class="flex flex-col gap-2">
 			<div class="flex gap-2">
@@ -329,7 +409,7 @@
 				<div class="flex flex-col gap-1">
 					{#each extPackages as pkg}
 						{@const extAddr = extRegistryAddress.trim() as `0x${string}`}
-						{@const alreadyAdded = selectedLegislation.some(l => l.registryAddress === extAddr && l.categoryId === pkg.categoryId && l.documentId === pkg.documentId)}
+						{@const alreadyAdded = registryEntries.some(l => l.registryAddress === extAddr && l.categoryId === pkg.categoryId && l.documentId === pkg.documentId)}
 						<button
 							onclick={() => addExternalLegislation(pkg)}
 							disabled={alreadyAdded}
@@ -366,33 +446,66 @@
 			<div class="text-sm text-text-secondary mb-2">Selected legislation</div>
 			<div class="flex flex-col gap-1.5">
 				{#each selectedLegislation as leg, i}
-					{@const isExternal = leg.registryAddress.toLowerCase() !== daaRegistryAddress.toLowerCase()}
 					<div class="flex items-start justify-between bg-surface border border-border rounded p-2 gap-2">
 						<div class="text-xs flex-1 min-w-0">
-							<div class="flex items-center gap-2 flex-wrap">
-								<span class="text-text font-medium truncate">{leg.title}</span>
-								<span class="px-1.5 py-0.5 rounded text-xs {leg.relationType === 4 ? 'bg-primary/20 text-primary' : leg.relationType === 5 ? 'bg-blue-900/30 text-blue-300' : 'bg-surface text-text-muted'}">
-									{RELATION_LABELS[leg.relationType]}
-								</span>
-							</div>
-							<div class="text-text-muted mt-0.5">
-								Cat {leg.categoryId} / Doc {leg.documentId} v{leg.version}
-								<span class="mx-1">·</span>
-								Registry:
-								{#if isExternal}
-									<span class="font-mono">{leg.registryAddress.slice(0, 6)}…{leg.registryAddress.slice(-4)}</span>
-									<span class="ml-1 text-text-muted/70">(external)</span>
-								{:else}
-									<span>Local</span>
+							{#if leg.kind === 'external'}
+								<div class="flex items-center gap-2 flex-wrap">
+									<span class="text-text font-medium truncate">{leg.title}</span>
+									<span class="px-1.5 py-0.5 rounded text-xs bg-surface text-text-muted">External document</span>
+								</div>
+								<div class="text-text-muted mt-0.5 break-all">{leg.uri}</div>
+								<div class="text-text-muted mt-0.5 font-mono break-all">SHA-256: {leg.hash}</div>
+							{:else}
+								{@const isExternal = leg.registryAddress.toLowerCase() !== daaRegistryAddress.toLowerCase()}
+								<div class="flex items-center gap-2 flex-wrap">
+									<span class="text-text font-medium truncate">{leg.title}</span>
+									<span class="px-1.5 py-0.5 rounded text-xs {leg.relationType === RELATION_GOVERNS ? 'bg-primary/20 text-primary' : leg.relationType === RELATION_IMPLEMENTS ? 'bg-blue-900/30 text-blue-300' : leg.relationType === RELATION_REFERENCES ? 'bg-yellow-900/30 text-yellow-300' : 'bg-surface text-text-muted'}">
+										{RELATION_LABELS[leg.relationType]}
+									</span>
+								</div>
+								<div class="text-text-muted mt-0.5">
+									Cat {leg.categoryId} / Doc {leg.documentId} v{leg.version}
+									<span class="mx-1">·</span>
+									Registry:
+									{#if isExternal}
+										<span class="font-mono">{leg.registryAddress.slice(0, 6)}…{leg.registryAddress.slice(-4)}</span>
+										<span class="ml-1 text-text-muted/70">(external)</span>
+									{:else}
+										<span>Local</span>
+									{/if}
+								</div>
+								{#if leg.relationType === RELATION_GOVERNS || leg.relationType === RELATION_IMPLEMENTS}
+									<select
+										value={leg.include}
+										onchange={(e) => setInclude(i, (e.target as HTMLSelectElement).value as PickedRegistryLaw['include'])}
+										class="mt-1 bg-surface border border-border rounded px-2 py-0.5 text-xs text-text"
+									>
+										<option value="text">Include full text</option>
+										<option value="citation">Include citation only</option>
+									</select>
 								{/if}
-							</div>
+							{/if}
 						</div>
-						<button
-							onclick={() => removeLegislation(i)}
-							class="text-red-400 hover:text-red-300 text-xs px-2 cursor-pointer shrink-0"
-						>
-							Remove
-						</button>
+						<div class="flex items-center gap-1 shrink-0">
+							<button
+								onclick={() => moveLegislation(i, -1)}
+								disabled={i === 0}
+								aria-label="Move up"
+								class="text-text-secondary hover:text-text text-xs px-1 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+							>↑</button>
+							<button
+								onclick={() => moveLegislation(i, 1)}
+								disabled={i === selectedLegislation.length - 1}
+								aria-label="Move down"
+								class="text-text-secondary hover:text-text text-xs px-1 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+							>↓</button>
+							<button
+								onclick={() => removeLegislation(i)}
+								class="text-red-400 hover:text-red-300 text-xs px-2 cursor-pointer"
+							>
+								Remove
+							</button>
+						</div>
 					</div>
 				{/each}
 			</div>

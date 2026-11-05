@@ -1,14 +1,7 @@
-import { readContract } from '@wagmi/core';
-import { config } from '#lib/services/wallet-config.ts';
+import { replay, type Document, type ReplayVersion } from '@vattelum/document-registry-js';
+import { readOnChain } from '#lib/services/chain-read.ts';
 import { DAARegistryABI } from '#lib/contracts/index.ts';
 import { fetchFromArweave } from '#lib/services/arweave.ts';
-import {
-	markdownToSections,
-	sectionsToMarkdown,
-	parseDocument,
-	compareSectionNumbers,
-	type Section
-} from '#lib/services/markdown.ts';
 
 export type LegislationStatus = 'InForce' | 'PartiallyAmended' | 'Repealed';
 
@@ -49,15 +42,12 @@ interface RawReference {
 	targetSection: string;
 }
 
-interface VersionContribution {
-	version: number;
-	docType: number;
+/** One on-chain version with its stored text, in the shape `replay` takes. */
+interface VersionContribution extends ReplayVersion {
 	title: string;
-	timestamp: number;
 	contentUri: string;
 	contentHash: `0x${string}`;
-	targetSection: string;
-	body: string;
+	voteId: string;
 }
 
 export interface ResolveInput {
@@ -66,14 +56,23 @@ export interface ResolveInput {
 	documentId: bigint;
 	/** The version the creator cited. Used for the title fallback. Not used to limit history. */
 	version: bigint;
+	/** Chain holding the registry. Omitted means the home chain. */
+	chainId?: bigint;
+}
+
+/** A law fixed for embedding in a contract package. See `resolveForPackage`. */
+export interface PackageLaw {
+	/** Title of the version that last set the whole text. */
+	title: string;
+	body: string;
+	/** On-chain record of every contributing version, ascending. Never empty. */
+	components: Document[];
 }
 
 import {
-	DOC_TYPE_ORIGINAL as DOCTYPE_ORIGINAL,
 	DOC_TYPE_AMENDMENT as DOCTYPE_AMENDMENT,
 	DOC_TYPE_REVISION as DOCTYPE_REVISION,
 	DOC_TYPE_REPEAL as DOCTYPE_REPEAL,
-	DOC_TYPE_CODIFICATION as DOCTYPE_CODIFICATION,
 	RELATION_AMENDS,
 	RELATION_REVISES,
 	RELATION_REPEALS
@@ -83,23 +82,16 @@ import {
  * Resolve a legislation reference into its consolidated form as of `asOf`.
  *
  * Walks the document's on-chain version history, fetches each version's body
- * from Arweave, and applies amendment/revision/repeal replay rules. Only
- * versions with `timestamp ≤ asOf` are considered — later versions do not
- * exist from this contract's perspective.
+ * from Arweave, and applies the standard's replay rule. Only versions with
+ * `timestamp ≤ asOf` are considered — later versions do not exist from this
+ * contract's perspective.
  */
 export async function resolveLegislation(
 	input: ResolveInput,
 	asOf: bigint
 ): Promise<ResolvedLegislation> {
-	const history = (await readContract(config, {
-		address: input.registryAddress,
-		abi: DAARegistryABI,
-		functionName: 'getHistory',
-		args: [input.categoryId, input.documentId]
-	})) as readonly RawVersion[];
-
-	const inWindow = history.filter((v) => v.timestamp <= asOf);
-	if (inWindow.length === 0) {
+	const contributions = await loadContributions(input, asOf, false);
+	if (contributions.length === 0) {
 		return {
 			title: `Document ${input.categoryId}/${input.documentId}`,
 			consolidatedBody: '',
@@ -108,8 +100,113 @@ export async function resolveLegislation(
 		};
 	}
 
+	const { text, used, repealed } = replay(contributions, asOf);
+
+	return {
+		title: deriveTitle(used),
+		consolidatedBody: text,
+		components: used.map((c) => ({
+			title: c.title,
+			docType: c.docType,
+			version: Number(c.version),
+			contentUri: c.contentUri,
+			contentHash: c.contentHash,
+			timestamp: Number(c.timestamp),
+			targetSection: c.targetSection
+		})),
+		status: repealed ? 'Repealed' : used.length > 1 ? 'PartiallyAmended' : 'InForce'
+	};
+}
+
+/**
+ * Resolve a law for embedding in a contract package as of `asOf`, with no
+ * tolerance for failure, because the result is hashed and signed.
+ *
+ * A failed fetch, reference read or hash check throws, as does a repealed or
+ * empty result.
+ */
+export async function resolveForPackage(input: ResolveInput, asOf: bigint): Promise<PackageLaw> {
+	const contributions = await loadContributions(input, asOf, true);
+	const label = `Document ${input.categoryId}/${input.documentId} on ${input.registryAddress}`;
+	if (contributions.length === 0) throw new Error(`${label} has no versions.`);
+
+	const { text, used, repealed } = replay(contributions, asOf, { verifyHashes: true });
+	if (repealed) throw new Error(`${label} has been repealed.`);
+	if (!text) throw new Error(`${label} resolved to an empty body.`);
+
+	return {
+		title: deriveTitle(used),
+		body: text,
+		components: used.map((c) => ({
+			contentUri: c.contentUri,
+			contentHash: c.contentHash,
+			title: c.title,
+			version: c.version,
+			timestamp: c.timestamp,
+			voteId: c.voteId,
+			docType: c.docType
+		}))
+	};
+}
+
+/** On-chain record and category name of one referenced version. No body is fetched. */
+export async function readDocumentRecord(ref: {
+	registryAddress: `0x${string}`;
+	chainId?: bigint;
+	categoryId: bigint;
+	documentId: bigint;
+	version: bigint;
+}): Promise<{ doc: Document; categoryName: string }> {
+	const registry = { address: ref.registryAddress, abi: DAARegistryABI };
+	const [raw, categoryName] = await Promise.all([
+		readOnChain(ref.chainId, {
+			...registry,
+			functionName: 'getDocument',
+			args: [ref.categoryId, ref.documentId, ref.version]
+		}) as Promise<RawVersion>,
+		readOnChain(ref.chainId, {
+			...registry,
+			functionName: 'categoryNames',
+			args: [ref.categoryId]
+		}) as Promise<string>
+	]);
+	return {
+		doc: {
+			contentUri: raw.contentUri,
+			contentHash: raw.contentHash,
+			title: raw.title,
+			version: raw.version,
+			timestamp: raw.timestamp,
+			voteId: raw.voteId,
+			docType: raw.docType
+		},
+		categoryName
+	};
+}
+
+/**
+ * Walk the on-chain history up to `asOf` and fetch each version's body. In strict
+ * mode a version with no stored text or an unreadable target section throws.
+ */
+async function loadContributions(
+	input: ResolveInput,
+	asOf: bigint,
+	strict: boolean
+): Promise<VersionContribution[]> {
+	const history = (await readOnChain(input.chainId, {
+		address: input.registryAddress,
+		abi: DAARegistryABI,
+		functionName: 'getHistory',
+		args: [input.categoryId, input.documentId]
+	})) as readonly RawVersion[];
+
 	const contributions: VersionContribution[] = [];
-	for (const v of inWindow) {
+	for (const v of history.filter((h) => h.timestamp <= asOf)) {
+		if (strict && !v.contentUri) {
+			throw new Error(
+				`Document ${input.categoryId}/${input.documentId} v${v.version} has no stored text.`
+			);
+		}
 		const body = v.contentUri ? await fetchFromArweave(v.contentUri, v.contentHash) : '';
 		let targetSection = '';
 		if (
@@ -117,212 +214,30 @@ export async function resolveLegislation(
 			v.docType === DOCTYPE_REVISION ||
 			v.docType === DOCTYPE_REPEAL
 		) {
-			targetSection = await readReferenceTargetSection(
-				input.registryAddress,
-				input.categoryId,
-				input.documentId,
-				v.version,
-				v.docType
-			);
+			targetSection = await readReferenceTargetSection(input, v.version, v.docType, strict);
 		}
 		contributions.push({
-			version: Number(v.version),
+			version: v.version,
 			docType: v.docType,
 			title: v.title,
-			timestamp: Number(v.timestamp),
+			timestamp: v.timestamp,
 			contentUri: v.contentUri,
 			contentHash: v.contentHash,
 			targetSection,
-			body
+			body,
+			voteId: v.voteId
 		});
 	}
-
-	const { sections, status, usedContributions } = replay(contributions);
-
-	const components: ComponentVersion[] = usedContributions.map((c) => ({
-		title: c.title,
-		docType: c.docType,
-		version: c.version,
-		contentUri: c.contentUri,
-		contentHash: c.contentHash,
-		timestamp: c.timestamp,
-		targetSection: c.targetSection
-	}));
-
-	const title = deriveTitle(usedContributions);
-
-	return {
-		title,
-		consolidatedBody: sectionsToMarkdown(sections),
-		components,
-		status
-	};
-}
-
-/**
- * Pure replay. Exported for testability.
- *
- * Takes an ordered list of contributing versions (as their parsed bodies and
- * metadata) and produces the consolidated `Section[]` plus status. Section
- * numbers are literal (`fixedNumber`) — never recomputed. Surrounding
- * sections are never renumbered.
- */
-export function replay(contributions: VersionContribution[]): {
-	sections: Section[];
-	status: LegislationStatus;
-	usedContributions: VersionContribution[];
-} {
-	if (contributions.length === 0) {
-		return { sections: [], status: 'InForce', usedContributions: [] };
-	}
-
-	const used: VersionContribution[] = [];
-	let sections: Section[] = [];
-	let altered = false;
-	let wholeRepealed = false;
-
-	for (const c of contributions) {
-		const bodySections = parseBody(c.body);
-
-		// v1 sets the starting array regardless of docType.
-		if (used.length === 0) {
-			sections = bodySections;
-			used.push(c);
-			continue;
-		}
-
-		if (c.docType === DOCTYPE_REVISION || c.docType === DOCTYPE_CODIFICATION) {
-			sections = bodySections;
-			altered = true;
-			used.push(c);
-			continue;
-		}
-
-		if (c.docType === DOCTYPE_REPEAL) {
-			const targets = splitTargets(c.targetSection);
-			if (targets.length === 0) {
-				// Whole-document repeal.
-				wholeRepealed = true;
-				used.push(c);
-				break;
-			}
-			for (const n of targets) {
-				sections = removeSubtree(sections, n);
-			}
-			altered = true;
-			used.push(c);
-			continue;
-		}
-
-		if (c.docType === DOCTYPE_AMENDMENT) {
-			let targets = splitTargets(c.targetSection);
-			if (targets.length === 0) {
-				// Back-compat: derive targets from body's top-level sections when on-chain targetSection is empty.
-				targets = topMostNumbers(bodySections);
-			}
-			if (targets.length === 0) {
-				continue;
-			}
-			let appliedAny = false;
-			for (const n of targets) {
-				const replacement = bodySections.filter((s) => belongsUnder(s, n));
-				if (replacement.length === 0) {
-					continue;
-				}
-				sections = spliceSubtree(sections, n, replacement);
-				appliedAny = true;
-			}
-			if (appliedAny) {
-				altered = true;
-				used.push(c);
-			}
-			continue;
-		}
-
-		// docType=0 Original encountered as non-first version is unexpected; treat as replace (defensive).
-		if (c.docType === DOCTYPE_ORIGINAL) {
-			sections = bodySections;
-			altered = true;
-			used.push(c);
-		}
-	}
-
-	let status: LegislationStatus = 'InForce';
-	if (wholeRepealed) status = 'Repealed';
-	else if (altered) status = 'PartiallyAmended';
-
-	return { sections: wholeRepealed ? [] : sections, status, usedContributions: used };
-}
-
-function parseBody(body: string): Section[] {
-	if (!body) return [];
-	const parsed = parseDocument(body);
-	return parsed.sections;
-}
-
-function splitTargets(targetSection: string): string[] {
-	if (!targetSection) return [];
-	return targetSection
-		.split(',')
-		.map((s) => s.trim())
-		.filter((s) => s.length > 0);
-}
-
-/** Top-most fixedNumbers in a section list (skip any whose ancestor is also present). */
-function topMostNumbers(sections: Section[]): string[] {
-	const all = sections.map((s) => s.fixedNumber).filter((n): n is string => !!n);
-	const set = new Set(all);
-	return all.filter((n) => {
-		const parts = n.split('.');
-		for (let i = 1; i < parts.length; i++) {
-			if (set.has(parts.slice(0, i).join('.'))) return false;
-		}
-		return true;
-	});
-}
-
-/** Whether a section's fixedNumber is equal to N or a descendant of N. */
-function belongsUnder(section: Section, n: string): boolean {
-	if (!section.fixedNumber) return false;
-	return section.fixedNumber === n || section.fixedNumber.startsWith(n + '.');
-}
-
-/**
- * Remove all sections whose fixedNumber equals N or starts with "N.".
- * Used by Repeal and as a building block for Amendment replacement.
- */
-function removeSubtree(sections: Section[], n: string): Section[] {
-	return sections.filter((s) => !belongsUnder(s, n));
-}
-
-/**
- * Replace the subtree rooted at N with the given replacement sections.
- * Insertion happens at the original position of the first removed section.
- * If N is absent, the replacement is appended at the end (defensive).
- */
-function spliceSubtree(sections: Section[], n: string, replacement: Section[]): Section[] {
-	const firstIdx = sections.findIndex((s) => belongsUnder(s, n));
-	const filtered = removeSubtree(sections, n);
-	if (firstIdx < 0) {
-		// Additive: insert at the natural numerical position. If nothing is greater, append.
-		const lead = replacement[0]?.fixedNumber ?? n;
-		const insertIdx = filtered.findIndex(
-			(s) => s.fixedNumber && compareSectionNumbers(s.fixedNumber, lead) > 0
-		);
-		if (insertIdx < 0) return [...filtered, ...replacement];
-		return [...filtered.slice(0, insertIdx), ...replacement, ...filtered.slice(insertIdx)];
-	}
-	const insertAt = Math.min(firstIdx, filtered.length);
-	return [...filtered.slice(0, insertAt), ...replacement, ...filtered.slice(insertAt)];
+	return contributions;
 }
 
 async function readReferenceTargetSection(
-	registryAddress: `0x${string}`,
-	categoryId: bigint,
-	documentId: bigint,
+	input: ResolveInput,
 	version: bigint,
-	docType: number
+	docType: number,
+	strict: boolean
 ): Promise<string> {
+	const { registryAddress, categoryId, documentId } = input;
 	const expectedRelation =
 		docType === DOCTYPE_AMENDMENT
 			? RELATION_AMENDS
@@ -334,7 +249,7 @@ async function readReferenceTargetSection(
 	if (expectedRelation < 0) return '';
 
 	try {
-		const refs = (await readContract(config, {
+		const refs = (await readOnChain(input.chainId, {
 			address: registryAddress,
 			abi: DAARegistryABI,
 			functionName: 'getReferences',
@@ -351,15 +266,59 @@ async function readReferenceTargetSection(
 				r.documentId === documentId
 		);
 		return match?.targetSection ?? '';
-	} catch {
+	} catch (e) {
+		// An empty target means "whole document" to replay, so an unreadable target
+		// must not reach signed text as one.
+		if (strict) {
+			throw new Error(
+				`Could not read the references of document ${categoryId}/${documentId} v${version} on ${registryAddress}.`,
+				{ cause: e }
+			);
+		}
 		return '';
 	}
 }
 
+/**
+ * A law's title: that of the version that last set the whole text (the first
+ * contributing version). Amendment and repeal titles never become the law's title.
+ */
 function deriveTitle(contributions: VersionContribution[]): string {
 	if (contributions.length === 0) return '';
-	const genesis = contributions[0];
-	// Strip any " (Amendment)" / " (Revision)" / " (Repeal)" suffix propagated from later versions.
-	// The genesis title is the authoritative package title.
-	return genesis.title;
+	return contributions[0].title;
+}
+
+/** A document's full on-chain history, oldest first. No text is fetched. */
+export async function readHistory(ref: {
+	registryAddress: `0x${string}`;
+	chainId?: bigint;
+	categoryId: bigint;
+	documentId: bigint;
+}): Promise<Document[]> {
+	const history = (await readOnChain(ref.chainId, {
+		address: ref.registryAddress,
+		abi: DAARegistryABI,
+		functionName: 'getHistory',
+		args: [ref.categoryId, ref.documentId]
+	})) as readonly RawVersion[];
+	return history.map((v) => ({
+		contentUri: v.contentUri,
+		contentHash: v.contentHash,
+		title: v.title,
+		version: v.version,
+		timestamp: v.timestamp,
+		voteId: v.voteId,
+		docType: v.docType
+	}));
+}
+
+/**
+ * The versions that make up a document's text, from the given history: the last
+ * version that set the whole text (Original, Revision, Codification) and every
+ * amendment or repeal after it. Decided by document type alone, without text.
+ */
+export function contributingVersions(history: readonly Document[]): Document[] {
+	const isChange = (t: number) => t === DOCTYPE_AMENDMENT || t === DOCTYPE_REPEAL;
+	const base = history.findLastIndex((v) => !isChange(v.docType));
+	return history.slice(Math.max(base, 0));
 }

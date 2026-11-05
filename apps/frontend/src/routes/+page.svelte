@@ -8,11 +8,12 @@
 	import { renderSectionedMarkdown } from '#lib/services/markdown.ts';
 	import { loadCategories as fetchCategories, loadDocuments, loadAmendmentRestrictions } from '#lib/services/registry.ts';
 	import Tooltip from '#lib/components/Tooltip.svelte';
-	import { docTypeLabel, relationLabel, RELATION_AMENDS, RELATION_REVISES, RELATION_REPEALS, RELATION_CODIFIES } from '#lib/constants/docTypes.ts';
+	import { docTypeLabel, relationLabel, RELATION_AMENDS, RELATION_REVISES, RELATION_REPEALS, RELATION_CODIFIES, RELATION_GOVERNS } from '#lib/constants/docTypes.ts';
 	import { hasVariableSchema } from '#lib/services/template-variables.ts';
 	import { formatDate, stripFrontmatter } from '#lib/services/format.ts';
 	import CiteButton from '#lib/components/CiteButton.svelte';
 	import ExportCitationButton from '#lib/components/ExportCitationButton.svelte';
+	import LegislationExpand from '#lib/components/LegislationExpand.svelte';
 
 	interface Reference {
 		registryAddress: string;
@@ -532,7 +533,8 @@
 														{#if doc.versions.length > 0}
 															{@const vCount = doc.versions.filter(v => v.docType === 0 || v.docType === 2).length}
 															{@const aCount = doc.versions.filter(v => v.docType === 1).length}
-															v{vCount}{#if aCount > 0}, {aCount} {aCount === 1 ? 'amendment' : 'amendments'}{/if}
+															{@const rCount = doc.versions.filter(v => v.docType === 3).length}
+															v{vCount}{#if aCount > 0}, {aCount} {aCount === 1 ? 'amendment' : 'amendments'}{/if}{#if rCount > 0}, {rCount} {rCount === 1 ? 'repeal' : 'repeals'}{/if}
 														{:else}
 															{doc.versionCount} {doc.versionCount === 1 ? 'entry' : 'entries'}
 														{/if}
@@ -566,7 +568,7 @@
 																				<span class="text-sm {isSuperseded(ver) ? 'line-through text-text-muted' : ''}">{ver.title}</span>
 																			{/if}
 																			{#if ver.docType !== 0}
-																				<span class="text-xs px-1.5 py-0.5 rounded bg-bg-lighter text-text-muted">{isPartialRepeal(ver) ? 'Partial Repeal' : docTypeLabel(ver.docType)}</span>
+																				<span class="text-xs px-1.5 py-0.5 rounded bg-bg-lighter text-text-muted">{isPartialRepeal(ver) ? `Repealed \u00A7${ver.references.find((r) => r.relationType === RELATION_REPEALS)?.targetSection.split(',').join(', \u00A7')}` : docTypeLabel(ver.docType)}</span>
 																			{/if}
 																			{#each ver.incomingRefs as iref}
 																				<span class="text-xs px-1.5 py-0.5 rounded bg-bg-lighter text-text-secondary">{incomingRefLabel(iref, displayLabels)}</span>
@@ -641,6 +643,24 @@
 																{/if}
 															</div>
 														{/each}
+														{#if !doc.hasVariables && doc.versions.length > 0}
+															<div class="mt-2">
+																<LegislationExpand
+																	reference={{
+																		registryAddress: daaRegistryAddress,
+																		chainId: BigInt(chainId),
+																		categoryId: BigInt(cat.id),
+																		documentId: BigInt(doc.documentId),
+																		version: BigInt(doc.versions[doc.versions.length - 1].version),
+																		relationType: RELATION_GOVERNS,
+																		targetSection: ''
+																	}}
+																	asOf={BigInt(Math.floor(Date.now() / 1000))}
+																	pickDate
+																	categoryName={cat.name}
+																/>
+															</div>
+														{/if}
 													{/if}
 												</div>
 											{/if}

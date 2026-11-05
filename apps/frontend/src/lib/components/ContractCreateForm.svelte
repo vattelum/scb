@@ -1,27 +1,25 @@
 <script lang="ts">
 	import { wallet } from '#lib/stores/wallet.ts';
 	import {
-		createContract,
-		type DocumentReference,
-		type CreateContractParams
-	} from '#lib/services/contract-registry.ts';
-	import { encryptForRecipients, type RecipientPubkey } from '#lib/services/ecies.ts';
-	import { getPubkey, clearPubkeyCache } from '#lib/services/pubkey-registry.ts';
-	import { hashBody, canonicalizeBody, RELATION_TEMPLATE, RELATION_REVISES } from '@vattelum/document-registry-js';
-	import { hashToBytes32 } from '#lib/services/hash.ts';
-	import { uploadDocument, verifyTurboHas } from '#lib/services/arweave.ts';
+		preparePackage,
+		commitPackage,
+		buildSidecar,
+		downloadContractFiles,
+		type PickedEntry,
+		type PreparedPackage,
+		type PendingUpload,
+		type ScbFields
+	} from '#lib/services/contract-create.ts';
+	import { renderContractHtml } from '#lib/services/print.ts';
 	import { contractRegistryAddress } from '#lib/contracts/index.ts';
 	import { loadDocuments, loadDocumentBody, type DocumentInfo } from '#lib/services/registry.ts';
 	import { readContract } from '@wagmi/core';
 	import { config } from '#lib/services/wallet-config.ts';
 	import { daaRegistryAddress, daaTokenConfig, contractTemplateCategoryId } from '#lib/contracts/index.ts';
-	import { getClient } from '#lib/services/wallet-config.ts';
-	import { stripFrontmatter, formatISODate } from '#lib/services/format.ts';
-	import { validateMarkdownUpload, MarkdownUnsafeError } from '#lib/services/markdown.ts';
+	import { stripFrontmatter } from '#lib/services/format.ts';
+	import { MarkdownUnsafeError } from '#lib/services/markdown.ts';
 	import { type TemplateRole } from '#lib/services/template-variables.ts';
 	import {
-		renderParties,
-		serializePartiesYaml,
 		emptyPartyBinding,
 		INDIVIDUAL_OPTIONAL_KEYS,
 		ENTITY_OPTIONAL_KEYS,
@@ -32,6 +30,7 @@
 	import PartiesSection from '#lib/components/PartiesSection.svelte';
 	import { isAddress } from 'viem';
 	import LoadingButton from '#lib/components/LoadingButton.svelte';
+	import Modal from '#lib/components/Modal.svelte';
 	import StorageModeToggle from '#lib/components/StorageModeToggle.svelte';
 	import TemplateSelector from '#lib/components/TemplateSelector.svelte';
 	import ScbSection from '#lib/components/ScbSection.svelte';
@@ -56,8 +55,8 @@
 		 * whole-document replacement). The UI shows a "Revising Contract #N"
 		 * banner; submit prepends a REVISES DocumentReference to the new
 		 * contract's references, enforces that signatories equal the source's
-		 * signatories, and rejects a submission whose contentHash is identical
-		 * to the source's.
+		 * signatories, and rejects a submission that differs from the source only
+		 * by its revision sentences.
 		 */
 		revisionOf?: bigint | null;
 		revisionSourceSignatories?: readonly `0x${string}`[] | null;
@@ -65,9 +64,9 @@
 	} = $props();
 
 	// User-supplied prose explaining why the underlying contract is being
-	// superseded. Embedded in the assembled body (and therefore the content
-	// hash, the encrypted Arweave blob, and the archive .md) so every reader
-	// of the revision sees the reason.
+	// superseded. Written into the package after the contract body (and therefore the
+	// content hash, the encrypted Arweave blob, and the exported .md) so every
+	// reader of the revision sees the reason.
 	let revisionReason = $state('');
 
 	// ────────────────── Template State ────────────────────────
@@ -92,7 +91,7 @@
 
 	// ────────────────── Creation State ────────────────────────
 
-	let selectedLegislation = $state<Array<{ title: string; categoryId: number; documentId: number; version: number; relationType: number; registryAddress: `0x${string}`; chainId?: number }>>([]);
+	let selectedLegislation = $state<PickedEntry[]>([]);
 	let creating = $state(false);
 	let createdContractId = $state<bigint | null>(null);
 	let hashOnlyMode = $state(false);
@@ -110,9 +109,12 @@
 	let error = $state('');
 
 	// Persist a Turbo tx ID across retries when its post-upload verification
-	// fails. Cleared on body change, on a failed re-check, and on success.
-	let pendingContentUri = $state<string | null>(null);
-	let pendingContentHash = $state<string | null>(null);
+	// fails. Cleared on package change, on a failed re-check, and on success.
+	const pendingUpload: PendingUpload = { uri: null, hash: null };
+
+	// The package awaiting the creator's confirmation.
+	let prepared = $state.raw<PreparedPackage | null>(null);
+	let showPreview = $state(false);
 	let canCreate = $derived($wallet.connected && $wallet.isTokenHolder);
 
 	// ────────────────── Derived: signatories from bindings ────
@@ -246,87 +248,6 @@
 
 	const hasPartyWalletErrors = $derived(Object.values(partyWalletErrors).some((e) => !!e));
 
-	// ────────────────── Assembly ──────────────────────────────
-
-	/**
-	 * Build the hashed body = rendered §1 Parties + filled template body.
-	 *
-	 * Role placeholders `{{role_key}}` resolve to the role label (bare, no
-	 * article — authors write "the {{role}}" explicitly when needed).
-	 * Variable placeholders `{{var}}` resolve from `variableValues`.
-	 */
-	function assembleBody(): string {
-		const renderedParties = renderParties(templateRoles, partyBindings);
-		const roleSubs: Record<string, string> = {};
-		for (const r of templateRoles) roleSubs[r.key] = r.label;
-		let body = stripFrontmatter(templateContent);
-		for (const [k, v] of Object.entries(roleSubs)) {
-			body = body.replaceAll(`{{${k}}}`, v);
-		}
-		for (const [k, v] of Object.entries(variableValues)) {
-			body = body.replaceAll(`{{${k}}}`, formatISODate(v));
-		}
-		// Revision metadata: emitted as HTML comments at the top of the body so
-		// the values are part of the hashed/encrypted/signed string, but vanish
-		// from rendered output (marked + DOMPurify strip HTML comments). Print
-		// and view extract these via extractRevisionMeta() and lift the reason
-		// into a title-block / context banner.
-		let preamble = '';
-		if (revisionOf !== null) {
-			preamble = `<!-- revision-of: ${revisionOf.toString()} -->\n`;
-			if (revisionReason.trim()) {
-				preamble += `<!-- revision-reason: ${revisionReason.trim()} -->\n`;
-			}
-			preamble += '\n';
-		}
-		// Canonicalize once, here, so the single assembled string feeds hash,
-		// validation, ECIES encryption, the hash-only archive, and the .md
-		// download identically (S-4). Verifier paths must NOT re-canonicalize.
-		return canonicalizeBody(`${preamble}${renderedParties}\n\n${body.trimStart()}`);
-	}
-
-	// ────────────────── Archive export ───────────────────────
-
-	function downloadArchiveMd(
-		contractId: bigint,
-		contentHash: `0x${string}`,
-		body: string,
-		signatories: `0x${string}`[],
-		references: DocumentReference[]
-	) {
-		const refsYaml = references.length === 0
-			? '[]'
-			: '\n' + references.map((r) =>
-				`  - registry: "${r.registryAddress}"\n    chain_id: ${r.chainId}\n    category_id: ${r.categoryId}\n    document_id: ${r.documentId}\n    version: ${r.version}\n    relation_type: ${r.relationType}`
-			).join('\n');
-
-		const partiesYaml = templateRoles.length > 0
-			? '\n' + serializePartiesYaml(templateRoles, partyBindings)
-			: '';
-
-		const fm = `---
-contract_id: "${contractId}"
-content_hash: "${contentHash}"
-contract_registry_address: "${contractRegistryAddress}"
-chain_id: ${chainId}
-signatories:
-${signatories.map((s) => `  - "${s}"`).join('\n')}
-references:${refsYaml}${partiesYaml}
----
-
-`;
-		const md = fm + body;
-		const blob = new Blob([md], { type: 'text/markdown' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `contract-${contractId}-archive.md`;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
-	}
-
 	// ────────────────── Submit ────────────────────────────────
 
 	async function submitCreate() {
@@ -454,152 +375,76 @@ references:${refsYaml}${partiesYaml}
 				}
 			}
 
-			// Assemble + hash
-			const completeDoc = assembleBody();
-
-			// Validate the assembled body is sanitization-clean before hashing,
-			// encrypting, or uploading. Covers both ECIES and hash-only paths
-			// (in hash-only mode the .md archive is the sole record, so its
-			// bytes must also be safe).
-			await validateMarkdownUpload(completeDoc);
-
-			const bodyHash = hashBody(completeDoc);
-			const contentHash = hashToBytes32(bodyHash) as `0x${string}`;
-
-			if (revisionOf !== null && revisionSourceContentHash && contentHash === revisionSourceContentHash) {
-				error = 'Revision content is identical to the underlying contract. Change something, or cancel.';
-				creating = false;
-				return;
-			}
-
-			let contentUri = '';
-
-			if (!hashOnlyMode) {
-				const recipients: RecipientPubkey[] = [];
-				const unregistered: `0x${string}`[] = [];
-				// Bypass the session pubkey cache so encryption targets the keys
-				// currently registered on-chain (a signatory may have re-registered
-				// since the cache was warmed).
-				clearPubkeyCache();
-				for (const addr of signatories) {
-					const pk = await getPubkey(addr);
-					if (pk) recipients.push({ address: addr, pubkey: pk });
-					else unregistered.push(addr);
-				}
-				if (unregistered.length > 0) {
-					error = `These addresses have not registered an encryption key yet: ${unregistered.join(', ')}. Ask each one to visit the app and connect their wallet so they can register before you create the contract.`;
-					creating = false;
-					return;
-				}
-
-				// Re-check pattern: if a previous upload of this exact body failed
-				// verification, retry the verify against the same tx ID instead of
-				// paying for a fresh upload. Body edits between attempts invalidate
-				// the pending tx via the hash mismatch.
-				if (pendingContentHash !== contentHash) {
-					pendingContentUri = null;
-					pendingContentHash = null;
-				}
-
-				if (pendingContentUri) {
-					try {
-						await verifyTurboHas(pendingContentUri);
-						contentUri = pendingContentUri;
-						pendingContentUri = null;
-						pendingContentHash = null;
-					} catch {
-						pendingContentUri = null;
-						pendingContentHash = null;
-						throw new Error(
-							"Previous upload not confirmed on Arweave. Submit again to start a fresh upload on Arweave."
-						);
-					}
-				} else {
-					const blob = await encryptForRecipients(completeDoc, recipients);
-					contentUri = await uploadDocument(JSON.stringify(blob));
-					try {
-						await verifyTurboHas(contentUri);
-					} catch {
-						pendingContentUri = contentUri;
-						pendingContentHash = contentHash;
-						throw new Error(
-							"Upload sent to Arweave but our system couldn't confirm it yet. Click Submit to re-check."
-						);
-					}
-				}
-			}
-
-			const references: DocumentReference[] = [
-				...(revisionOf !== null
-					? [
-							{
-								registryAddress: contractRegistryAddress,
-								chainId: BigInt(chainId),
-								categoryId: 0n,
-								documentId: revisionOf,
-								version: 0n,
-								relationType: RELATION_REVISES,
-								targetSection: ''
-							} satisfies DocumentReference
-						]
-					: []),
-				{
-					registryAddress: daaRegistryAddress,
-					chainId: BigInt(chainId),
+			prepared = await preparePackage({
+				templateTitle: selectedTemplate.latestTitle,
+				templateContent,
+				template: {
 					categoryId: BigInt(contractTemplateCategoryId!),
 					documentId: BigInt(selectedTemplate.documentId),
 					version: templateVersion,
-					relationType: RELATION_TEMPLATE,
-					targetSection: ''
+					registryAddress: daaRegistryAddress
 				},
-				...selectedLegislation.map((leg) => ({
-					registryAddress: leg.registryAddress,
-					chainId: BigInt(leg.chainId ?? chainId),
-					categoryId: BigInt(leg.categoryId),
-					documentId: BigInt(leg.documentId),
-					version: BigInt(leg.version),
-					relationType: leg.relationType,
-					targetSection: ''
-				}))
-			];
-
-			const scbOn = scbEnabled && scbValid;
-			const params: CreateContractParams = {
-				contentHash,
+				roles: templateRoles,
+				bindings: $state.snapshot(partyBindings) as PartyBindings,
+				variableValues: $state.snapshot(variableValues),
+				picked: $state.snapshot(selectedLegislation) as PickedEntry[],
 				signatories,
-				contentUri,
-				references,
-				smartContractAddress: scbOn ? (scbAddress as `0x${string}`) : '0x0000000000000000000000000000000000000000',
-				bytecodeHash: scbOn ? (scbBytecodeHash as `0x${string}`) : '0x0000000000000000000000000000000000000000000000000000000000000000',
-				smartContractChainId: scbOn ? BigInt(scbChainId) : 0n
-			};
+				hashOnly: hashOnlyMode,
+				revision: revisionOf !== null ? { ofContractId: revisionOf, reason: revisionReason } : null,
+				contractRegistry: contractRegistryAddress,
+				chainId
+			});
+			showPreview = true;
+		} catch (e: any) {
+			reportFailure(e);
+		} finally {
+			creating = false;
+		}
+	}
 
-			const txHash = await createContract(params);
-			const client = getClient();
-			await client.waitForTransactionReceipt({ hash: txHash });
+	function reportFailure(e: any) {
+		console.error('[submitCreate] CAUGHT:', e);
+		const msg = e?.message || 'Failed to create contract';
+		error = msg;
+		if (!(e instanceof MarkdownUnsafeError)) {
+			showToast('error', msg);
+		}
+	}
 
-			pendingContentUri = null;
-			pendingContentHash = null;
+	async function confirmCreate() {
+		if (!prepared) return;
+		showPreview = false;
+		creating = true;
+		error = '';
 
-			const count = await import('#lib/services/contract-registry.ts').then(m => m.getContractCount());
-			createdContractId = count;
+		const scbOn = scbEnabled && scbValid;
+		const scb: ScbFields = {
+			smartContractAddress: scbOn ? (scbAddress as `0x${string}`) : '0x0000000000000000000000000000000000000000',
+			bytecodeHash: scbOn ? (scbBytecodeHash as `0x${string}`) : '0x0000000000000000000000000000000000000000000000000000000000000000',
+			smartContractChainId: scbOn ? BigInt(scbChainId) : 0n
+		};
 
-			downloadArchiveMd(count, contentHash, completeDoc, signatories, references);
-			oncreated(count, completeDoc);
+		try {
+			const committed = await commitPackage(
+				prepared,
+				scb,
+				revisionSourceContentHash,
+				pendingUpload,
+				contractRegistryAddress
+			);
+			createdContractId = committed.contractId;
+
+			downloadContractFiles(committed.contractId, prepared.canonical, buildSidecar(prepared, committed, scb));
+			oncreated(committed.contractId, prepared.canonical);
 
 			showToast(
 				'success',
-				hashOnlyMode
-					? `Contract #${count} created (hash-only). Share the downloaded .md file with counterparties so they can import and sign.`
-					: `Contract #${count} created. Counterparties can now read and sign in-app — no file transfer needed.`
+				prepared.hashOnly
+					? `Contract #${committed.contractId} created (hash-only). Share the downloaded .md file with counterparties so they can import and sign.`
+					: `Contract #${committed.contractId} created. Counterparties can now read and sign in-app — no file transfer needed.`
 			);
 		} catch (e: any) {
-			console.error('[submitCreate] CAUGHT:', e);
-			const msg = e?.message || 'Failed to create contract';
-			error = msg;
-			if (!(e instanceof MarkdownUnsafeError)) {
-				showToast('error', msg);
-			}
+			reportFailure(e);
 		} finally {
 			creating = false;
 		}
@@ -634,7 +479,7 @@ references:${refsYaml}${partiesYaml}
 		{#if revisionOf !== null}
 			<div class="bg-amber-900/30 border border-amber-700 rounded-lg px-4 py-3 text-sm text-amber-200 flex flex-col gap-2">
 				<p class="font-medium">Revising Contract #{revisionOf.toString()}</p>
-				<p class="text-xs text-amber-200/80">This contract will supersede Contract #{revisionOf.toString()} in full. Signatories must match the original exactly. The reason below is embedded in the signed document and visible to every signatory.</p>
+				<p class="text-xs text-amber-200/80">This contract will supersede Contract #{revisionOf.toString()} in full. Signatories must match the original exactly. The reason below is written into the signed document and visible to every signatory.</p>
 				<label class="block text-xs text-amber-200/80">
 					Reason for revision <span class="text-amber-200/60">(optional)</span>
 					<textarea
@@ -715,4 +560,19 @@ references:${refsYaml}${partiesYaml}
 			</LoadingButton>
 		</div>
 	</div>
+{/if}
+
+<!-- Preview: the exact document that will be hashed once the creator confirms -->
+{#if prepared}
+	<Modal bind:open={showPreview} title="Review the contract" maxWidth="max-w-3xl">
+		<div class="flex flex-col gap-3 text-sm">
+			<p class="text-xs text-text-muted">This is the exact document that will be hashed, stored and signed. It cannot change after you confirm.</p>
+			<div class="doc-viewer prose prose-invert max-w-none text-text border-t border-border pt-3">{@html renderContractHtml(prepared.canonical)}</div>
+		</div>
+
+		{#snippet footer()}
+			<LoadingButton onclick={() => (showPreview = false)} variant="secondary">Back</LoadingButton>
+			<LoadingButton onclick={confirmCreate} variant="primary">Confirm &amp; Create</LoadingButton>
+		{/snippet}
+	</Modal>
 {/if}

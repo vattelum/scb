@@ -1,5 +1,15 @@
 import { marked, Marked } from 'marked';
 import DOMPurify from 'dompurify';
+import {
+	markdownToSections as parseSections,
+	sectionsToMarkdown as joinSections,
+	compareSectionNumbers,
+	checkAmendment
+} from '@vattelum/document-registry-js';
+
+// Section parsing follows Standard §3 and lives in the package; the editor's
+// `Section` adds an id and an optional fixed number on top of it.
+export { compareSectionNumbers };
 
 // ──────────────── Markdown Safety (Layer 1 + Layer 2) ────────────────
 //
@@ -136,44 +146,23 @@ export function computeSectionNumber(sections: Section[], index: number): string
 }
 
 export function sectionsToMarkdown(sections: Section[]): string {
-	return sections
-		.map((s, i) => {
-			const num = s.fixedNumber ? `§${s.fixedNumber}` : computeSectionNumber(sections, i);
-			const hashes = '#'.repeat(s.depth + 1);
-			const heading = `${hashes} ${num} ${s.title}`;
-			return s.content ? `${heading}\n\n${s.content}` : heading;
-		})
-		.join('\n\n');
+	return joinSections(
+		sections.map((s, i) => ({
+			number: s.fixedNumber ?? computeSectionNumber(sections, i).slice(1),
+			depth: s.depth,
+			title: s.title,
+			content: s.content
+		}))
+	);
 }
 
 export function markdownToSections(markdown: string): Section[] {
-	const lines = markdown.split('\n');
-	const sections: Section[] = [];
-	let current: Section | null = null;
-	let contentLines: string[] = [];
-
-	for (const line of lines) {
-		const match = line.match(/^(#{2,4})\s+§([\d.A-Z]+)\s+(.*)/);
-		if (match) {
-			if (current) {
-				current.content = contentLines.join('\n').trim();
-				sections.push(current);
-			}
-			current = createSection((match[1].length - 1) as 1 | 2 | 3);
-			current.fixedNumber = match[2];
-			current.title = match[3];
-			contentLines = [];
-		} else if (current) {
-			contentLines.push(line);
-		}
-	}
-
-	if (current) {
-		current.content = contentLines.join('\n').trim();
-		sections.push(current);
-	}
-
-	return sections;
+	return parseSections(markdown).map((p) => ({
+		...createSection(p.depth),
+		title: p.title,
+		content: p.content,
+		fixedNumber: p.number
+	}));
 }
 
 function serializeFrontmatter(frontmatter: Record<string, unknown>): string {
@@ -358,27 +347,6 @@ export function sortByFixedNumber(sections: Section[]): Section[] {
 	});
 }
 
-export function compareSectionNumbers(a: string, b: string): number {
-	const partsA = parseSectionNumber(a);
-	const partsB = parseSectionNumber(b);
-	for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
-		const pa = partsA[i] ?? -1;
-		const pb = partsB[i] ?? -1;
-		if (pa !== pb) return pa - pb;
-	}
-	return 0;
-}
-
-function parseSectionNumber(num: string): number[] {
-	if (!num) return [];
-	return num.split('.').map(part => {
-		const n = parseInt(part);
-		if (!isNaN(n)) return n;
-		// Letter: A=1, B=2, etc.
-		return part.charCodeAt(0) - 64;
-	});
-}
-
 /**
  * Render a markdown string through marked → wrapSections → DOMPurify.
  * Single pipeline used by /propose review modal, /vote proposal body, and the
@@ -422,4 +390,35 @@ export function wrapSections(html: string): string {
 		const level = Number(match[1]) - 1; // h2→1, h3→2, h4→3
 		return `<div class="doc-section-${level}">${part}</div>`;
 	}).join('');
+}
+
+// ──────────────── Propose-time Checks ────────────────
+
+/**
+ * Heading lines that use `§` but do not follow the Standard §3 grammar
+ * (`## §1 Title`, `### §1.1 Title`, `#### §1.1.A Title`), e.g. `## §1.`. Such a
+ * line is read as body text, so a document carrying one is stopped before upload.
+ */
+export function malformedSectionHeadings(markdown: string): string[] {
+	return markdown
+		.split('\n')
+		.filter((line) => /^#+\s*§/.test(line) && parseSections(line).length === 0);
+}
+
+/**
+ * Targets an amendment records on-chain. Sections in its text that fall under no
+ * selected target are added (top-most only; the cascade covers their children), and
+ * targets with no text under them, which the resolver removes from the law, are
+ * reported. With no target selected, the text names its own targets.
+ */
+export function amendmentTargets(
+	sections: Section[],
+	selected: string[]
+): { targets: string[]; added: string[]; removed: string[] } {
+	if (selected.length === 0) return { targets: [], added: [], removed: [] };
+	const parsed = parseSections(sectionsToMarkdown(sections));
+	const { uncovered } = checkAmendment(parsed, selected.join(','));
+	const added = uncovered.filter((n) => !uncovered.some((u) => n.startsWith(u + '.')));
+	const targets = [...selected, ...added].sort(compareSectionNumbers);
+	return { targets, added, removed: checkAmendment(parsed, targets.join(',')).emptyTargets };
 }

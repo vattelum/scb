@@ -1,7 +1,7 @@
 import { readContract, writeContract, signTypedData, multicall } from '@wagmi/core';
 import { config } from '#lib/services/wallet-config.ts';
 import { contractRegistryConfig, contractRegistryAddress } from '#lib/contracts/index.ts';
-import { RELATION_GOVERNS, RELATION_REVISES } from '@vattelum/document-registry-js';
+import { RELATION_REVISES } from '@vattelum/document-registry-js';
 
 const chainId = Number(import.meta.env.VITE_CHAIN_ID);
 const ZERO_REASON = '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
@@ -129,8 +129,7 @@ export const EventTypeLabels: Record<number, string> = {
 
 export async function signContractTypedData(
 	contractId: bigint,
-	documentHash: `0x${string}`,
-	governingLawRegistry: `0x${string}`
+	documentHash: `0x${string}`
 ): Promise<`0x${string}`> {
 	return signTypedData(config, {
 		domain: {
@@ -143,7 +142,6 @@ export async function signContractTypedData(
 			ContractSignature: [
 				{ name: 'contractId', type: 'uint256' },
 				{ name: 'documentHash', type: 'bytes32' },
-				{ name: 'governingLawRegistry', type: 'address' },
 				{ name: 'contractRegistry', type: 'address' },
 				{ name: 'networkChainId', type: 'uint256' }
 			]
@@ -152,7 +150,6 @@ export async function signContractTypedData(
 		message: {
 			contractId,
 			documentHash,
-			governingLawRegistry,
 			contractRegistry: contractRegistryAddress,
 			networkChainId: BigInt(chainId)
 		}
@@ -526,11 +523,6 @@ export async function isSignatory(contractId: bigint, addr: `0x${string}`): Prom
 }
 
 // ────────────────── Helpers ────────────────────────────────────
-
-export function getGoverningLawRegistry(references: DocumentReference[]): `0x${string}` {
-	const governs = references.find((r) => r.relationType === RELATION_GOVERNS);
-	return governs?.registryAddress ?? '0x0000000000000000000000000000000000000000';
-}
 
 // ────────────────── Revision-chain helpers ──────────────────────
 //

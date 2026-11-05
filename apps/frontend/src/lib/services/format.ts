@@ -25,30 +25,21 @@ export function formatISODate(iso: string): string {
 }
 
 /**
+ * Cutoff T for a date picked in <input type="date"> ("YYYY-MM-DD"): the last
+ * second of that day, UTC, in unix seconds. Null if the input is not a date.
+ */
+export function endOfDayUTC(iso: string): bigint | null {
+	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+	if (!m) return null;
+	const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 23, 59, 59);
+	return Number.isNaN(ms) ? null : BigInt(ms / 1000);
+}
+
+/**
  * Truncate an Ethereum address to "0xAbCd...EfGh" form.
  */
 export function truncAddr(addr: string): string {
 	return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
-
-/**
- * Extract revision metadata embedded as HTML comments at the top of a contract
- * body. Markdown renderers strip the comments automatically; this helper lifts
- * them into structured fields and returns the body without them so they aren't
- * also rendered as raw text by any consumer that doesn't go through marked.
- */
-export function extractRevisionMeta(body: string): {
-	revisionOf: bigint | null;
-	reason: string;
-	body: string;
-} {
-	const ofMatch = body.match(/^<!--\s*revision-of:\s*(\d+)\s*-->\s*\n/);
-	if (!ofMatch) return { revisionOf: null, reason: '', body };
-	let rest = body.slice(ofMatch[0].length);
-	const reasonMatch = rest.match(/^<!--\s*revision-reason:\s*([\s\S]*?)\s*-->\s*\n/);
-	const reason = reasonMatch ? reasonMatch[1].trim() : '';
-	if (reasonMatch) rest = rest.slice(reasonMatch[0].length);
-	return { revisionOf: BigInt(ofMatch[1]), reason, body: rest.replace(/^\s+/, '') };
 }
 
 /**

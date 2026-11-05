@@ -192,45 +192,37 @@ function formatValue(label: string, value: string): string {
 }
 
 /**
- * Serialize party bindings as a YAML block for archive .md frontmatter.
- * Keys emitted in declaration order; blank optional fields omitted.
+ * Party bindings as plain data for the export sidecar, keyed by role.key.
+ * Keys in declaration order; blank optional fields omitted.
  */
-export function serializePartiesYaml(roles: TemplateRole[], bindings: PartyBindings): string {
-	const lines: string[] = ['parties:'];
-
-	const emitOpt = (indent: string, key: string, val: string | undefined) => {
-		if (val && val.trim()) lines.push(`${indent}${key}: "${escapeYaml(val)}"`);
+export function partiesToJson(roles: TemplateRole[], bindings: PartyBindings): Record<string, unknown> {
+	const pick = (source: object, keys: readonly string[]) => {
+		const out: Record<string, string> = {};
+		for (const key of keys) {
+			const value = (source as Record<string, unknown>)[key];
+			if (typeof value === 'string' && value.trim()) out[key] = value;
+		}
+		return out;
 	};
 
+	const parties: Record<string, unknown> = {};
 	for (const role of roles) {
 		const b = bindings[role.key];
 		if (!b) continue;
-		lines.push(`  ${role.key}:`);
-		lines.push(`    signer_name: "${escapeYaml(b.signer_name)}"`);
-		lines.push(`    wallet: "${b.wallet}"`);
-		if (b.entity) {
-			lines.push(`    entity:`);
-			lines.push(`      legal_name: "${escapeYaml(b.entity.legal_name)}"`);
-			emitOpt('      ', 'jurisdiction', b.entity.jurisdiction);
-			emitOpt('      ', 'registration_number', b.entity.registration_number);
-			emitOpt('      ', 'registered_address', b.entity.registered_address);
-			emitOpt('      ', 'tax_id', b.entity.tax_id);
-			emitOpt('      ', 'signer_role', b.entity.signer_role);
-			emitOpt('      ', 'email', b.entity.email);
-			emitOpt('      ', 'phone', b.entity.phone);
-		} else {
-			emitOpt('    ', 'email', b.email);
-			emitOpt('    ', 'phone', b.phone);
-			emitOpt('    ', 'address', b.address);
-			emitOpt('    ', 'date_of_birth', b.date_of_birth);
-			emitOpt('    ', 'nationality', b.nationality);
-			emitOpt('    ', 'government_id', b.government_id);
-			emitOpt('    ', 'tax_id', b.tax_id);
-		}
+		parties[role.key] = b.entity
+			? {
+					signer_name: b.signer_name,
+					wallet: b.wallet,
+					entity: {
+						legal_name: b.entity.legal_name,
+						...pick(b.entity, ENTITY_OPTIONAL_KEYS)
+					}
+				}
+			: {
+					signer_name: b.signer_name,
+					wallet: b.wallet,
+					...pick(b, INDIVIDUAL_OPTIONAL_KEYS)
+				};
 	}
-	return lines.join('\n');
-}
-
-function escapeYaml(s: string): string {
-	return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+	return parties;
 }

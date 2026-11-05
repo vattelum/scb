@@ -36,7 +36,6 @@
 		effectiveStatus as readEffectiveStatus,
 		hasActiveProposal,
 		signContractTypedData,
-		getGoverningLawRegistry,
 		findRevisionSource,
 		isExpired,
 		Status,
@@ -52,13 +51,15 @@
 	import { decryptAsRecipient, type EciesBlob } from '#lib/services/ecies.ts';
 	import { isRegistered, register as registerPubkey } from '#lib/services/pubkey-registry.ts';
 	import { deriveLocalPubkey, derivePrivateScalar, clearScalarCache } from '#lib/services/pubkey-derivation.ts';
-	import { assembleAndPrint, fetchLegislation, type PrintOptions } from '#lib/services/print.ts';
-	import { hashBody, RELATION_TEMPLATE } from '@vattelum/document-registry-js';
+	import { assembleAndPrint, fetchReferenceRows, renderContractHtml } from '#lib/services/print.ts';
+	import { buildOnChainSidecar, downloadContractFiles } from '#lib/services/contract-create.ts';
+	import { governingLawSection } from '#lib/services/contract-package.ts';
+	import { hashBody, RELATION_REFERENCES, RELATION_TEMPLATE } from '@vattelum/document-registry-js';
 	import { hashToBytes32 } from '#lib/services/hash.ts';
 	import { contractRegistryAddress } from '#lib/contracts/index.ts';
 	import { fetchFromArweave } from '#lib/services/arweave.ts';
 	import { getClient } from '#lib/services/wallet-config.ts';
-	import { truncAddr, formatDate, stripFrontmatter, extractRevisionMeta } from '#lib/services/format.ts';
+	import { truncAddr, formatDate, stripFrontmatter } from '#lib/services/format.ts';
 	import { chainIdToLabel, chainIdToExplorer, formatNetwork } from '#lib/constants/networks.ts';
 	const chainId = Number(import.meta.env.VITE_CHAIN_ID);
 
@@ -122,35 +123,24 @@
 	let viewRevisedByContractId = $state<bigint | null>(null);
 	let viewRevisedByCreatedAt = $state<bigint | null>(null);
 
-	const viewLegislationRefs = $derived.by(() => {
+	// Governing law is in the contract text. Only plain references stay out of it.
+	const viewReferenceRefs = $derived.by(() => {
 		if (!viewContract) return [] as DocumentReference[];
-		return [...viewContract.references]
-			.filter((r) => r.relationType !== RELATION_TEMPLATE)
-			.sort((a, b) => a.relationType - b.relationType);
+		return viewContract.references.filter((r) => r.relationType === RELATION_REFERENCES);
 	});
 
-	// Lift revision metadata embedded as HTML comments at the top of the body
-	// so it can be shown as registry context (banner above the body) instead of
-	// rendered as raw text. The comments themselves are stripped from what the
-	// reader sees.
-	const viewRevisionMeta = $derived.by(() => {
-		if (!viewContent) return { revisionOf: null as bigint | null, reason: '', body: '' };
-		return extractRevisionMeta(viewContent);
-	});
+	const viewLawSection = $derived(viewContent ? governingLawSection(viewContent) : null);
+	let viewShowSource = $state(false);
+
+	// The package just created in this session, so its creator never has to
+	// re-import their own file (hash-only mode has no other copy in the app).
+	let createdPackage: { id: bigint; text: string } | null = null;
 
 	// ────────────────── Import State ───────────────────────────
 
 	let importContent = $state('');
 	let importContractId = $state('');
 	let importHashMatch = $state<boolean | null>(null);
-
-	// ────────────────── Print Options State ───────────────────
-
-	let showPrintModal = $state(false);
-	let printOptions = $state<PrintOptions>({
-		includeAdoptedModules: true,
-		includeGoverningLaws: true
-	});
 
 	// ────────────────── Pubkey Registration State ──────────────
 
@@ -235,6 +225,7 @@
 		error = '';
 		try {
 			await loadContractState(id, knownRevisedBy);
+			if (createdPackage?.id === id) await verifyAndSetContent(createdPackage.text);
 			view = 'view';
 		} catch (e: any) {
 			showToast('error', e.message || 'Failed to load contract');
@@ -410,8 +401,8 @@
 		setTimeout(() => createFormRef?.init(), 0);
 	}
 
-	async function handleContractCreated(id: bigint, content: string) {
-		await verifyAndSetContent(content);
+	function handleContractCreated(id: bigint, content: string) {
+		createdPackage = { id, text: content };
 	}
 
 	// ────────────────── Sign Functions ─────────────────────────
@@ -428,14 +419,8 @@
 		showConfirmModal = false;
 
 		try {
-			const governingLawRegistry = getGoverningLawRegistry(viewContract.references);
-
 			// EIP-712 sign
-			const signature = await signContractTypedData(
-				viewContractId,
-				viewContract.contentHash,
-				governingLawRegistry
-			);
+			const signature = await signContractTypedData(viewContractId, viewContract.contentHash);
 
 			// Reuse the creator's shared ECIES blob (slot 0) — every signatory's
 			// wrapped key is already in it. No re-encryption, no second Arweave
@@ -683,15 +668,9 @@
 		}
 	}
 
-	function openPrintModal() {
-		if (!viewContractId || !viewContract) return;
-		showPrintModal = true;
-	}
-
 	let showImportForPrint = $state(false);
 
 	async function handlePrint() {
-		showPrintModal = false;
 		if (!viewContractId || !viewContract) return;
 
 		const hasArweave = viewContract.contentUris.some((t) => t && t.length > 0);
@@ -717,16 +696,7 @@
 				return;
 			}
 
-			const legislation = await fetchLegislation(viewContract.references, viewContract.createdAt);
-			const templateRef = legislation.find((l) => l.relationType === RELATION_TEMPLATE);
-			const templateName = templateRef?.title ?? `Contract #${viewContractId}`;
-
-			const revisionSource =
-				viewRevisesContractId !== null
-					? await getContract(viewRevisesContractId)
-							.then((c) => ({ contractId: viewRevisesContractId!, createdAt: c.createdAt }))
-							.catch(() => undefined)
-					: undefined;
+			const referenceRows = await fetchReferenceRows(viewContract.references, contractRegistryAddress);
 
 			const isDraft =
 				viewContract.signatures.length < viewContract.signatories.length;
@@ -735,14 +705,11 @@
 				contractId: viewContractId,
 				contract: viewContract,
 				contractContent: content,
-				templateName,
-				legislation,
+				referenceRows,
 				events: viewEvents,
 				contractRegistryAddress,
 				chainId,
 				effectiveStatus: viewDisplayStatus,
-				options: printOptions,
-				revisionSource,
 				draft: isDraft
 			});
 		} catch (e: any) {
@@ -764,10 +731,27 @@
 		if (await verifyAndSetContent(body)) {
 			showImportForPrint = false;
 			// Content loaded, now print
-			openPrintModal();
+			await handlePrint();
 		} else {
 			error = 'Hash mismatch — this file does not match the on-chain record.';
 		}
+	}
+
+	async function handleDownload() {
+		if (!viewContractId || !viewContract) return;
+		error = '';
+		if (!viewContent && viewContract.contentUris.some((t) => t && t.length > 0)) {
+			await decryptContent();
+		}
+		if (!viewContent) {
+			error = error || 'No content available. Import the .md file first.';
+			return;
+		}
+		downloadContractFiles(
+			viewContractId,
+			viewContent,
+			buildOnChainSidecar(viewContractId, viewContract, contractRegistryAddress, chainId)
+		);
 	}
 
 	// ────────────────── Inline Import (within contract view) ──
@@ -803,6 +787,20 @@
 		if (fmMatch) {
 			const cidMatch = fmMatch[1].match(/contract_id:\s*"?(\d+)"?/);
 			if (cidMatch) importContractId = cidMatch[1];
+		}
+	}
+
+	// The sidecar is informational: it only prefills the contract id.
+	async function handleImportSidecar(event: Event) {
+		const file = (event.target as HTMLInputElement).files?.[0];
+		if (!file) return;
+		error = '';
+		try {
+			const id = JSON.parse(await file.text())?.contractId;
+			if (id === undefined || !/^\d+$/.test(String(id))) throw new Error();
+			importContractId = String(id);
+		} catch {
+			error = 'This sidecar file has no contract id. Enter the id below.';
 		}
 	}
 
@@ -954,10 +952,16 @@
 				{#if viewIsSignatory && (viewContract.status === Status.Active || viewContract.status === Status.Terminated || viewContract.status === Status.Completed || (viewContract.status === Status.Created && viewContentVerified))}
 					<div class="mt-4 pt-3 border-t border-border flex gap-2 flex-wrap">
 						<button
-							onclick={openPrintModal}
+							onclick={handlePrint}
 							class="bg-surface hover:bg-surface-hover border border-border text-text text-sm px-4 py-2 rounded transition-colors cursor-pointer"
 						>
 							{viewContract.status === Status.Created ? 'Print unsigned version' : 'Print Contract'}
+						</button>
+						<button
+							onclick={handleDownload}
+							class="bg-surface hover:bg-surface-hover border border-border text-text text-sm px-4 py-2 rounded transition-colors cursor-pointer"
+						>
+							Download contract file
 						</button>
 						{#if viewContract.status === Status.Active && viewRevisedByContractId === null}
 							<button
@@ -1010,12 +1014,19 @@
 						<div class="flex items-center gap-2 mb-3">
 							<span class="text-green-400 text-xs">Content verified</span>
 						</div>
-						{#if viewRevisionMeta.revisionOf !== null && viewRevisionMeta.reason}
-							<div class="mb-3 text-xs text-amber-200/90 border border-amber-700/40 bg-amber-900/20 rounded px-3 py-2">
-								<span class="font-medium">Revision reason:</span> {viewRevisionMeta.reason}
-							</div>
+						<div class="flex justify-end">
+							<button
+								onclick={() => (viewShowSource = !viewShowSource)}
+								class="text-xs text-text-secondary hover:text-text underline cursor-pointer"
+							>
+								{viewShowSource ? 'Show document' : 'Show source'}
+							</button>
+						</div>
+						{#if viewShowSource}
+							<div class="text-text text-xs font-mono whitespace-pre-wrap break-words border-t border-border pt-3 mt-2">{viewContent}</div>
+						{:else}
+							<div class="doc-viewer prose prose-invert max-w-none text-text text-sm border-t border-border pt-3 mt-2">{@html renderContractHtml(viewContent)}</div>
 						{/if}
-						<div class="prose prose-sm max-w-none text-text text-sm whitespace-pre-wrap border-t border-border pt-3">{viewRevisionMeta.body || viewContent}</div>
 					{:else if !hasArweave}
 						<div class="flex items-center gap-2 mb-2">
 							<span class="text-yellow-400 text-xs">Not stored on Arweave</span>
@@ -1044,13 +1055,13 @@
 				</div>
 			{/if}
 
-			<!-- Governing Framework (legislation references with inline-expand bodies) -->
-			{#if viewLegislationRefs.length > 0}
+			<!-- Referenced documents (not part of the contract text) -->
+			{#if viewReferenceRefs.length > 0}
 				<div class="bg-surface border border-border rounded-lg p-4">
-					<h3 class="text-sm font-medium mb-1">Governing Framework</h3>
+					<h3 class="text-sm font-medium mb-1">Referenced Documents</h3>
 					<p class="text-xs text-text-muted mb-3">Click each entry to expand the full consolidated text as it stood when the contract was created.</p>
 					<div class="flex flex-col gap-1">
-						{#each viewLegislationRefs as ref}
+						{#each viewReferenceRefs as ref}
 							<LegislationExpand reference={ref} asOf={viewContract.createdAt} />
 						{/each}
 					</div>
@@ -1215,6 +1226,14 @@
 						class="hidden"
 					/>
 				</label>
+				<label class="inline-block ml-2 bg-surface hover:bg-surface-hover border border-border text-text text-sm px-4 py-2 rounded transition-colors cursor-pointer">
+					Choose .json sidecar (optional)
+					<input type="file" accept=".json" onchange={handleImportSidecar} class="hidden" />
+				</label>
+				<p class="text-xs text-text-muted mt-2">An untouched file also matches with <code>sha256sum</code>. A file re-saved by an editor that appends a newline still passes this check, but not <code>sha256sum</code>.</p>
+				{#if error}
+					<p class="text-red-400 text-xs mt-2">{error}</p>
+				{/if}
 			</div>
 
 			{#if importContent}
@@ -1280,7 +1299,6 @@
 	<!-- ═══════════════ CONFIRM MODAL ═══════════════ -->
 	{#if viewContract && viewContractId}
 		{@const templateRef = viewContract.references.find(r => r.relationType === RELATION_TEMPLATE)}
-		{@const legislationRefs = [...viewContract.references].filter(r => r.relationType !== RELATION_TEMPLATE).sort((a, b) => a.relationType - b.relationType)}
 		<Modal bind:open={showConfirmModal} title="Confirm Signature" maxWidth="max-w-lg">
 			<div class="flex flex-col gap-3 text-sm">
 				<div>
@@ -1305,16 +1323,8 @@
 						{/each}
 					</div>
 				</div>
-				{#if legislationRefs.length > 0}
-					<div>
-						<span class="text-text-muted">Governing Legislation:</span>
-						<p class="text-[11px] text-text-muted mt-0.5 mb-1.5">Click each entry to expand the full consolidated text as it stood when the contract was created.</p>
-						<div class="flex flex-col gap-1">
-							{#each legislationRefs as ref}
-								<LegislationExpand reference={ref} asOf={viewContract.createdAt} compact />
-							{/each}
-						</div>
-					</div>
+				{#if viewLawSection !== null}
+					<p class="text-xs text-text-secondary">Governing law is included in or cited by the document you are signing ({viewLawSection}).</p>
 				{/if}
 				{#if viewContract.smartContractAddress !== ZERO_ADDRESS}
 					<div>
@@ -1337,36 +1347,6 @@
 			{/snippet}
 		</Modal>
 	{/if}
-
-	<!-- ═══════════════ PRINT OPTIONS MODAL ═══════════════ -->
-	<Modal bind:open={showPrintModal} title="Print Options" maxWidth="max-w-lg">
-		<p class="text-xs text-text-muted mb-4">
-			The contract template and verification appendix are always included. Uncheck a section to
-			print a one-line reference instead of the full body text.
-		</p>
-
-		<div class="flex flex-col gap-3 text-sm">
-			<label class="flex items-start gap-2 cursor-pointer">
-				<input type="checkbox" bind:checked={printOptions.includeAdoptedModules} class="mt-1" />
-				<span>
-					<span class="text-text">Adopted Modules</span>
-					<span class="block text-xs text-text-muted">Full text of elective modules (IMPLEMENTS)</span>
-				</span>
-			</label>
-			<label class="flex items-start gap-2 cursor-pointer">
-				<input type="checkbox" bind:checked={printOptions.includeGoverningLaws} class="mt-1" />
-				<span>
-					<span class="text-text">Governing Laws</span>
-					<span class="block text-xs text-text-muted">Full text of DAA-wide governing legislation (GOVERNS)</span>
-				</span>
-			</label>
-		</div>
-
-		{#snippet footer()}
-			<LoadingButton onclick={() => (showPrintModal = false)} variant="secondary">Cancel</LoadingButton>
-			<LoadingButton onclick={handlePrint} variant="primary">Print</LoadingButton>
-		{/snippet}
-	</Modal>
 
 	<!-- ═══════════════ IMPORT FOR PRINT MODAL ═══════════════ -->
 	<Modal bind:open={showImportForPrint} title="Import Contract to Print" maxWidth="max-w-lg">

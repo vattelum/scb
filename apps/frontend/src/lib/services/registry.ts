@@ -1,5 +1,6 @@
 import { readContract } from '@wagmi/core';
 import { config } from '#lib/services/wallet-config.ts';
+import { readOnChain } from '#lib/services/chain-read.ts';
 import { daaRegistryConfig, DAARegistryABI } from '#lib/contracts/index.ts';
 import { fetchFromArweave } from '#lib/services/arweave.ts';
 import { stripFrontmatter } from '#lib/services/format.ts';
@@ -97,9 +98,12 @@ export async function getDocumentCount(categoryId: number): Promise<number> {
  * Load categories from any registry that implements the standard interface (Referencing Standard §3.3).
  * Uses the DAARegistry ABI — all Vattelum registries share the same contract interface.
  */
-export async function loadCategoriesFrom(registryAddress: `0x${string}`): Promise<CategoryInfo[]> {
+export async function loadCategoriesFrom(
+	registryAddress: `0x${string}`,
+	chainId?: number
+): Promise<CategoryInfo[]> {
 	const extConfig = { address: registryAddress, abi: DAARegistryABI } as const;
-	const count = (await readContract(config, {
+	const count = (await readOnChain(chainId, {
 		...extConfig,
 		functionName: 'categoryCount'
 	})) as bigint;
@@ -107,8 +111,8 @@ export async function loadCategoriesFrom(registryAddress: `0x${string}`): Promis
 	const cats: CategoryInfo[] = [];
 	for (let i = 0n; i < count; i++) {
 		const [name, docCount] = await Promise.all([
-			readContract(config, { ...extConfig, functionName: 'categoryNames', args: [i] }),
-			readContract(config, { ...extConfig, functionName: 'getDocumentCount', args: [i] })
+			readOnChain(chainId, { ...extConfig, functionName: 'categoryNames', args: [i] }),
+			readOnChain(chainId, { ...extConfig, functionName: 'getDocumentCount', args: [i] })
 		]);
 		cats.push({ id: Number(i), name: name as string, documentCount: Number(docCount as bigint) });
 	}
@@ -204,13 +208,14 @@ import {
  */
 export async function loadLegislationPackages(
 	categoryId: number,
-	registryAddress?: `0x${string}`
+	registryAddress?: `0x${string}`,
+	chainId?: number
 ): Promise<LegislationPackageInfo[]> {
 	const cfg = registryAddress
 		? ({ address: registryAddress, abi: DAARegistryABI } as const)
 		: daaRegistryConfig;
 
-	const docCount = (await readContract(config, {
+	const docCount = (await readOnChain(chainId, {
 		...cfg,
 		functionName: 'getDocumentCount',
 		args: [BigInt(categoryId)]
@@ -218,7 +223,7 @@ export async function loadLegislationPackages(
 
 	const packages: LegislationPackageInfo[] = [];
 	for (let i = 1n; i <= docCount; i++) {
-		const history = (await readContract(config, {
+		const history = (await readOnChain(chainId, {
 			...cfg,
 			functionName: 'getHistory',
 			args: [BigInt(categoryId), i]
@@ -235,11 +240,15 @@ export async function loadLegislationPackages(
 		let wholelyRepealed = false;
 
 		if (history.length > 1) {
-			status = 'PartiallyAmended';
+			// Amended only by amendments or repeals after the last version that set the
+			// whole text (Original, Revision, Codification); a revised law is in force.
+			const isChange = (t: number) => t === DOCTYPE_AMENDMENT || t === DOCTYPE_REPEAL;
+			const lastWhole = history.findLastIndex((v) => !isChange(v.docType));
+			if (history.slice(lastWhole + 1).some((v) => isChange(v.docType))) status = 'PartiallyAmended';
 			for (let j = 1; j < history.length; j++) {
 				const v = history[j];
 				if (v.docType !== DOCTYPE_REPEAL) continue;
-				const refs = (await readContract(config, {
+				const refs = (await readOnChain(chainId, {
 					...cfg,
 					functionName: 'getReferences',
 					args: [BigInt(categoryId), i, v.version]
@@ -257,7 +266,7 @@ export async function loadLegislationPackages(
 		// Resolve codifies list from the genesis references.
 		let codifies: LegislationPackageInfo['codifies'] = [];
 		try {
-			const genesisRefs = (await readContract(config, {
+			const genesisRefs = (await readOnChain(chainId, {
 				...cfg,
 				functionName: 'getReferences',
 				args: [BigInt(categoryId), i, 1n]

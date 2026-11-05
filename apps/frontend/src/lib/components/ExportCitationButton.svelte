@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { RELATION_REFERENCES } from '@vattelum/document-registry-js';
 	import { chainIdToLabel } from '#lib/constants/networks.ts';
-	import { downloadCitationJson } from '#lib/services/exportCitation.ts';
+	import {
+		downloadCitationJson,
+		downloadInForceJson,
+		type InForceResolution
+	} from '#lib/services/exportCitation.ts';
 
 	let {
 		title,
@@ -13,7 +17,8 @@
 		chainId,
 		categoryId,
 		documentId,
-		categoryName
+		categoryName,
+		resolution
 	}: {
 		title: string;
 		version: number;
@@ -25,9 +30,18 @@
 		categoryId: number;
 		documentId: number;
 		categoryName: string;
+		/** Export the text in force at a cutoff instead of the version's citation envelope. */
+		resolution?: InForceResolution;
 	} = $props();
 
 	function exportJson() {
+		if (resolution) {
+			downloadInForceJson(
+				{ chainId: BigInt(chainId), registryAddress, categoryId: BigInt(categoryId), documentId: BigInt(documentId) },
+				resolution
+			);
+			return;
+		}
 		const ref = {
 			registryAddress,
 			chainId: BigInt(chainId),

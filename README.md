@@ -1,8 +1,8 @@
 # The Smart Contract Block — Legal Context for Ethereum Smart Contracts
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Solidity](https://img.shields.io/badge/Solidity-0.8.31-363636.svg)](https://soliditylang.org)
-[![Foundry Tests](https://img.shields.io/badge/Foundry_Tests-249_passing-brightgreen.svg)](https://getfoundry.sh)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.38-363636.svg)](https://soliditylang.org)
+[![Foundry Tests](https://img.shields.io/badge/Foundry_Tests-256_passing-brightgreen.svg)](https://getfoundry.sh)
 [![SvelteKit](https://img.shields.io/badge/SvelteKit-Frontend-FF3E00.svg)](https://kit.svelte.dev)
 
 The Smart Contract Block (SCB) merges on-chain law and smart contracts into binding legal agreements.
@@ -29,13 +29,17 @@ The SCB offers smart contracts legal context. It turns (bottom-up) decentralized
 
 Just like any other contract, the SCB is an agreement between two or more parties.
 
-Contracting parties select a template and governing laws from the DAA registry. They fill in the required variables (party names, dates, terms, smart contract details) and submit.
+Contracting parties select a template and governing laws from the DAA registry, or from any other Vattelum registry. They fill in the required variables (party names, dates, terms, smart contract details) and submit.
+
+At creation, the complete agreement is assembled once into a single markdown file: the contract with its parties, then each governing law and adopted module in full, as in force at that moment, then a references section for documents that are cited but not included. Each law records the moment it was resolved and the rule it was resolved under, so anyone can reproduce its text from the chain. This file is what is hashed, stored, signed, printed and exported. It never changes afterwards.
 
 The contract text is hashed (SHA-256) and encrypted with ECIES. The encrypted blob is uploaded to [Arweave](https://arweave.org) for permanent storage; once Arweave confirms the upload, the hash and the storage pointer are recorded on-chain.
 
 Every signatory can decrypt the legal contract in their browser using their wallet. They then sign the contract using an EIP-712 structured signature. Once all signatories have signed, the contract becomes Active.
 
-The signed contract can now be printed as PDF. The printed version contains governing legislation, and a verification appendix listing the content hash, every signature, every legal reference (with clickable Etherscan and Arweave links), and the full lifecycle timeline of the engagement.
+The signed contract can now be printed as PDF. The print renders the agreement exactly as stored, followed by a verification appendix listing the content hash, every signature, every legal reference with each version that makes up its text (with clickable Etherscan and Arweave links), and the full lifecycle timeline of the engagement.
+
+At creation, the agreement is also downloaded as `contract-<id>.md` with a `contract-<id>.json` sidecar. `sha256sum contract-<id>.md` equals the on-chain content hash; the sidecar records the references, the resolution moment and rule, and every law version the text was built from. This makes each contract machine-readable: software and AI agents can read the agreement, check it against the chain, and trace every law it relies on without parsing the text.
 
 The result is an end-to-end system that creates blockchain-based laws and turns them into binding agreements: the legal texts and templates are written and voted on by members, the contracts are freely selected by the signatories, the proof of consent is independently auditable, and no third-party can control or read the contracts.
 
@@ -65,7 +69,7 @@ The frontend is a static SvelteKit application that connects directly to these c
 
 The build output is a pre-rendered HTML + JS bundle with a fixed content hash. All state lives on-chain or on Arweave. Nothing is stored on a server.
 
-**Smart Contracts** (Solidity 0.8.31, OpenZeppelin 5.x):
+**Smart Contracts** (Solidity 0.8.38, OpenZeppelin 5.x):
 - `DAAToken.sol` — ERC-721 + ERC-5192 soulbound membership token. Inherited from the DAA build; gates contract creation via `balanceOf()`.
 - `DAARegistry.sol` — Append-only document registry with categories, document layer, versioning, two-tier governance authority, per-document amendment restrictions, atomic `addDocumentWithRestrictions` for governance proposals that bundle a new document with its restrictions. Implements `IDocumentRegistry` from `@vattelum/document-registry`.
 - `ContractRegistry.sol` — Per-contract record of content hashes, EIP-712 signatures, lifecycle events, and an optional reference to a deployed smart contract (address + bytecode hash + chain ID). Propose / accept / reject / dispute / finalize lifecycle with a 30-day notice window.
@@ -73,18 +77,18 @@ The build output is a pre-rendered HTML + JS bundle with a fixed content hash. A
 - `PercentageQuorumAvatarStrategy.sol` — Custom Snapshot X execution strategy with percentage-based approval threshold and participation quorum calculated from `DAAToken.totalSupply()`.
 
 **Frontend** (SvelteKit + adapter-static, Svelte 5 runes, Tailwind v4):
-- `/` — Public registry browser. Loads categories and documents from the DAA registry, fetches full text from Arweave on demand.
-- `/propose` — Structured markdown editor for legislation and contract templates. Token holders only.
+- `/` — Public registry browser. Loads categories and documents from the DAA registry, fetches full text from Arweave on demand. For each law, shows the text in force on any chosen date, with cite, export and copy.
+- `/propose` — Structured markdown editor for legislation and contract templates. Token holders only. Refuses headings outside the section format; an amendment adds new sections to its targets and asks before removing a targeted section it gives no text for.
 - `/admin` (labelled **Members** in the nav) — Self-service token minting, resign membership (burn), paginated member list.
 - `/vote` — Governance page. Active proposals with voting, passed proposals with execute, collapsible history. Decodes proposals of three shapes: plain `addDocument`, two-tx bundle, and atomic `addDocumentWithRestrictions`.
-- `/contract` — Create, sign, view, and print individual contracts. Per-signatory ECIES decryption in-browser. Four-quadrant proposal model (Cancel / Accept / Reject / Dispute) on the lifecycle banner.
+- `/contract` — Create, sign, view, and print individual contracts. Shows the exact document before it is hashed. Per-signatory ECIES decryption in-browser. Four-quadrant proposal model (Cancel / Accept / Reject / Dispute) on the lifecycle banner.
 
 **External Services**:
 - [Snapshot X](https://snapshotx.xyz) (sx-evm) — On-chain voting and execution for governance over legislation and templates.
 - [Arweave](https://arweave.org) — Permanent encrypted storage of contract bodies via [ArDrive Turbo](https://ardrive.io).
 - [Gnosis Safe](https://safe.global) — Governance execution target for the legislation registry.
 
-**Vattelum Package** — The SCB ensures interoperability with the rest of the ecosystem by incorporating the [Vattelum document-registry package](https://github.com/vattelum/document-registry). This is a small Solidity + TypeScript library that every Vattelum app shares, so a contract written in one app can cite, hash-check, and trust a document published by another. It is the core standard that specifies how documents are identified, cited, and verified across the entire ecosystem.
+**Vattelum Package** — The SCB ensures interoperability with the rest of the ecosystem by incorporating the [Vattelum document-registry package](https://github.com/vattelum/document-registry). This is a small Solidity + TypeScript library that every Vattelum app shares, so a contract written in one app can cite, hash-check, and trust a document published by another. It is the core standard that specifies how documents are identified, cited, and verified across the entire ecosystem, and how a law's text in force at a given moment is resolved from its amendments, repeals and revisions. Each contract names the package version whose rule it was resolved under.
 
 **Deployment architecture:**
 
@@ -217,10 +221,11 @@ Every upload is followed by a Turbo status verification call (`verifyTurboHas`) 
 1. **Mint a membership token** — Go to Members, click Mint. Repeat with a second wallet so you have at least two members.
 2. **Add a contract template** — Go to Propose. Pick the "Contract Templates" category, write a template with a YAML frontmatter `roles:` block declaring the abstract parties (e.g. `client`, `contractor`) and an optional `variables:` block for non-party fields. Submit the proposal, vote it through, execute.
 3. **Register encryption pubkeys** — Go to Contract on each wallet. The app prompts each member to register their encryption pubkey (one-time wallet signature, derives a separate keypair).
-4. **Create a contract** — From the first wallet, go to Contract → Create. Pick the template, bind a role to each wallet, fill the variables, optionally cite governing legislation (local or from another registry), pick a storage mode (Arweave-encrypted or hash-only), and submit.
+4. **Create a contract** — From the first wallet, go to Contract → Create. Pick the template, bind a role to each wallet, fill the variables, and optionally add governing laws and adopted modules (in full or cited), references, and external documents (title, link and SHA-256), from the local registry or another one. Pick a storage mode (Arweave-encrypted or hash-only), review the exact document, and confirm. Keep the downloaded `.md` and `.json`.
 5. **Sign** — From the second wallet, open Contract. The contract appears in the list. Click to open. The app fetches the encrypted blob, unwraps the wallet's key, decrypts in-browser, recomputes the SHA-256, and verifies against the on-chain hash. Click Sign.
-6. **Print** — From either wallet, open the now-Active contract and click Print. Pick which legislation sections appear in full. The browser print dialog generates a PDF with the verification appendix.
-7. **Lifecycle** — Optionally test Propose Termination / Propose Completion. Watch the four-quadrant model (Cancel / Accept / Reject / Dispute) in action: the proposer sees Cancel; non-proposer signatories see Accept and Reject; everyone can Dispute from the footer.
+6. **Print** — From either wallet, open the now-Active contract and click Print. The browser print dialog generates a PDF of the stored agreement with the verification appendix.
+7. **Verify** — Run `sha256sum contract-<id>.md` on the downloaded file and compare it with the content hash in the print and on-chain.
+8. **Lifecycle** — Optionally test Propose Termination / Propose Completion. Watch the four-quadrant model (Cancel / Accept / Reject / Dispute) in action: the proposer sees Cancel; non-proposer signatories see Accept and Reject; everyone can Dispute from the footer.
 
 ## Configuration
 

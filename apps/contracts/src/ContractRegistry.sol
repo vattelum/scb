@@ -187,7 +187,7 @@ contract ContractRegistry {
 
     bytes32 private constant CONTRACT_SIGNATURE_TYPEHASH =
         keccak256(
-            "ContractSignature(uint256 contractId,bytes32 documentHash,address governingLawRegistry,address contractRegistry,uint256 networkChainId)"
+            "ContractSignature(uint256 contractId,bytes32 documentHash,address contractRegistry,uint256 networkChainId)"
         );
 
     uint256 private immutable _CACHED_CHAIN_ID;
@@ -861,21 +861,11 @@ contract ContractRegistry {
     {
         Contract storage c = _contracts[contractId];
 
-        // First GOVERNS (relationType 4) reference determines the governing law registry.
-        address governingLawRegistry = address(0);
-        for (uint256 i = 0; i < c.references.length; i++) {
-            if (c.references[i].relationType == 4) {
-                governingLawRegistry = c.references[i].registryAddress;
-                break;
-            }
-        }
-
         bytes32 structHash = keccak256(
             abi.encode(
                 CONTRACT_SIGNATURE_TYPEHASH,
                 contractId,
                 c.contentHash,
-                governingLawRegistry,
                 address(this),
                 block.chainid
             )

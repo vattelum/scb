@@ -130,7 +130,7 @@ contract ContractRegistryTest is Test {
         return status;
     }
 
-    function _eip712Digest(uint256 contractId, bytes32 contentHash, address governingLawRegistry)
+    function _eip712Digest(uint256 contractId, bytes32 contentHash)
         internal
         view
         returns (bytes32)
@@ -138,11 +138,10 @@ contract ContractRegistryTest is Test {
         bytes32 structHash = keccak256(
             abi.encode(
                 keccak256(
-                    "ContractSignature(uint256 contractId,bytes32 documentHash,address governingLawRegistry,address contractRegistry,uint256 networkChainId)"
+                    "ContractSignature(uint256 contractId,bytes32 documentHash,address contractRegistry,uint256 networkChainId)"
                 ),
                 contractId,
                 contentHash,
-                governingLawRegistry,
                 address(registry),
                 block.chainid
             )
@@ -150,13 +149,13 @@ contract ContractRegistryTest is Test {
         return keccak256(abi.encodePacked("\x19\x01", registry.DOMAIN_SEPARATOR(), structHash));
     }
 
-    function _signContract(uint256 contractId, uint256 pk, address governingLawRegistry)
+    function _signContract(uint256 contractId, uint256 pk)
         internal
         view
         returns (bytes memory)
     {
         (bytes32 contentHash,,,,,,,,,) = registry.getContract(contractId);
-        bytes32 digest = _eip712Digest(contractId, contentHash, governingLawRegistry);
+        bytes32 digest = _eip712Digest(contractId, contentHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
     }
@@ -166,11 +165,11 @@ contract ContractRegistryTest is Test {
         returns (uint256)
     {
         uint256 cid = _createContract(creator, counterparty);
-        bytes memory sig1 = _signContract(cid, creatorPk, address(registry));
+        bytes memory sig1 = _signContract(cid, creatorPk);
         vm.prank(creator);
         registry.sign(cid, sig1, "ar_alice_tx");
 
-        bytes memory sig2 = _signContract(cid, counterpartyPk, address(registry));
+        bytes memory sig2 = _signContract(cid, counterpartyPk);
         vm.prank(counterparty);
         registry.sign(cid, sig2, "ar_bob_tx");
 
@@ -207,15 +206,15 @@ contract ContractRegistryTest is Test {
         vm.prank(alice);
         uint256 cid = registry.createContract(p);
 
-        bytes memory s1 = _signContract(cid, alicePk, address(registry));
+        bytes memory s1 = _signContract(cid, alicePk);
         vm.prank(alice);
         registry.sign(cid, s1, "ar_alice_tx");
 
-        bytes memory s2 = _signContract(cid, bobPk, address(registry));
+        bytes memory s2 = _signContract(cid, bobPk);
         vm.prank(bob);
         registry.sign(cid, s2, "ar_bob_tx");
 
-        bytes memory s3 = _signContract(cid, charliePk, address(registry));
+        bytes memory s3 = _signContract(cid, charliePk);
         vm.prank(charlie);
         registry.sign(cid, s3, "ar_charlie_tx");
 
@@ -297,7 +296,7 @@ contract ContractRegistryTest is Test {
 
     function test_sign_validEIP712Signature() public {
         uint256 cid = _createContract(alice, bob);
-        bytes memory sig = _signContract(cid, alicePk, address(registry));
+        bytes memory sig = _signContract(cid, alicePk);
 
         vm.prank(alice);
         registry.sign(cid, sig, "ar_alice_tx");
@@ -310,7 +309,7 @@ contract ContractRegistryTest is Test {
 
     function test_sign_revertsForNonSignatory() public {
         uint256 cid = _createContract(alice, bob);
-        bytes memory sig = _signContract(cid, charliePk, address(registry));
+        bytes memory sig = _signContract(cid, charliePk);
 
         vm.prank(charlie);
         vm.expectRevert(abi.encodeWithSelector(ContractRegistry.NotSignatory.selector, cid, charlie));
@@ -319,7 +318,7 @@ contract ContractRegistryTest is Test {
 
     function test_sign_revertsForInvalidSignature() public {
         uint256 cid = _createContract(alice, bob);
-        bytes memory sig = _signContract(cid, bobPk, address(registry));
+        bytes memory sig = _signContract(cid, bobPk);
 
         vm.prank(alice);
         vm.expectRevert(ContractRegistry.InvalidSignature.selector);
@@ -328,7 +327,7 @@ contract ContractRegistryTest is Test {
 
     function test_sign_revertsForHighSMalleatedSignature() public {
         uint256 cid = _createContract(alice, bob);
-        bytes memory sig = _signContract(cid, alicePk, address(registry));
+        bytes memory sig = _signContract(cid, alicePk);
 
         // Extract r, s, v; mutate to (r, n - s, flipped v) — the other valid
         // recover for the same digest. Canonical-low-s rule rejects this.
@@ -352,7 +351,7 @@ contract ContractRegistryTest is Test {
 
     function test_sign_revertsForInvalidV() public {
         uint256 cid = _createContract(alice, bob);
-        bytes memory sig = _signContract(cid, alicePk, address(registry));
+        bytes memory sig = _signContract(cid, alicePk);
 
         bytes32 r;
         bytes32 s;
@@ -373,11 +372,11 @@ contract ContractRegistryTest is Test {
 
     function test_sign_revertsForAlreadySigned() public {
         uint256 cid = _createContract(alice, bob);
-        bytes memory sig = _signContract(cid, alicePk, address(registry));
+        bytes memory sig = _signContract(cid, alicePk);
         vm.prank(alice);
         registry.sign(cid, sig, "ar_alice_tx");
 
-        bytes memory sig2 = _signContract(cid, alicePk, address(registry));
+        bytes memory sig2 = _signContract(cid, alicePk);
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(ContractRegistry.AlreadySigned.selector, cid, alice));
         registry.sign(cid, sig2, "ar_alice_tx2");
@@ -385,7 +384,7 @@ contract ContractRegistryTest is Test {
 
     function test_sign_emitsEvent() public {
         uint256 cid = _createContract(alice, bob);
-        bytes memory sig = _signContract(cid, alicePk, address(registry));
+        bytes memory sig = _signContract(cid, alicePk);
 
         vm.prank(alice);
         vm.expectEmit(true, true, false, false);
@@ -400,11 +399,11 @@ contract ContractRegistryTest is Test {
 
     function test_sign_emitsActiveEvent() public {
         uint256 cid = _createContract(alice, bob);
-        bytes memory sig1 = _signContract(cid, alicePk, address(registry));
+        bytes memory sig1 = _signContract(cid, alicePk);
         vm.prank(alice);
         registry.sign(cid, sig1, "ar_alice_tx");
 
-        bytes memory sig2 = _signContract(cid, bobPk, address(registry));
+        bytes memory sig2 = _signContract(cid, bobPk);
         vm.prank(bob);
         vm.expectEmit(true, false, false, false);
         emit ContractActive(cid);
@@ -428,7 +427,7 @@ contract ContractRegistryTest is Test {
         uint256 cid = _createContract(alice, bob);
         vm.warp(block.timestamp + 30 days + 1);
 
-        bytes memory sig = _signContract(cid, alicePk, address(registry));
+        bytes memory sig = _signContract(cid, alicePk);
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(ContractRegistry.SigningWindowExpired.selector, cid));
         registry.sign(cid, sig, "ar_alice_tx");
@@ -438,7 +437,7 @@ contract ContractRegistryTest is Test {
         uint256 cid = _createContract(alice, bob);
         vm.warp(block.timestamp + 30 days);
 
-        bytes memory sig = _signContract(cid, alicePk, address(registry));
+        bytes memory sig = _signContract(cid, alicePk);
         vm.prank(alice);
         registry.sign(cid, sig, "ar_alice_tx");
         assertTrue(registry.hasSigned(cid, alice));
@@ -473,17 +472,17 @@ contract ContractRegistryTest is Test {
         vm.prank(alice);
         uint256 cid = registry.createContract(p);
 
-        bytes memory sig1 = _signContract(cid, alicePk, address(registry));
+        bytes memory sig1 = _signContract(cid, alicePk);
         vm.prank(alice);
         registry.sign(cid, sig1, "ar_alice_tx");
 
-        bytes memory sig2 = _signContract(cid, bobPk, address(registry));
+        bytes memory sig2 = _signContract(cid, bobPk);
         vm.prank(bob);
         registry.sign(cid, sig2, "ar_bob_tx");
 
         assertEq(_status(cid), uint8(ContractRegistry.Status.Created));
 
-        bytes memory sig3 = _signContract(cid, charliePk, address(registry));
+        bytes memory sig3 = _signContract(cid, charliePk);
         vm.prank(charlie);
         registry.sign(cid, sig3, "ar_charlie_tx");
 
@@ -505,7 +504,7 @@ contract ContractRegistryTest is Test {
 
     function test_decline_revertsForAlreadySigned() public {
         uint256 cid = _createContract(alice, bob);
-        bytes memory sig = _signContract(cid, alicePk, address(registry));
+        bytes memory sig = _signContract(cid, alicePk);
         vm.prank(alice);
         registry.sign(cid, sig, "ar_alice_tx");
 
@@ -1665,7 +1664,7 @@ contract ContractRegistryTest is Test {
 
     function test_gas_sign() public {
         uint256 cid = _createContract(alice, bob);
-        bytes memory sig = _signContract(cid, alicePk, address(registry));
+        bytes memory sig = _signContract(cid, alicePk);
 
         vm.prank(alice);
         uint256 gasBefore = gasleft();

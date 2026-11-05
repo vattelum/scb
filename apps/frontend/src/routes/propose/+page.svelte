@@ -33,7 +33,12 @@
 		allowsMultipleReferences,
 		supportsSectionTargeting
 	} from '#lib/constants/docTypes.ts';
-	import { computeSectionNumber, sortByFixedNumber } from '#lib/services/markdown.ts';
+	import {
+		computeSectionNumber,
+		sortByFixedNumber,
+		malformedSectionHeadings,
+		amendmentTargets
+	} from '#lib/services/markdown.ts';
 	import {
 		parseVariableSchema,
 		serializeVariableSchema,
@@ -757,6 +762,27 @@
 		} else if (sections.length === 0) {
 			submitError = 'At least one section is required.';
 			return;
+		}
+		if (!isRepealMode()) {
+			const malformed = malformedSectionHeadings(sectionsToMarkdown(sections));
+			if (malformed.length > 0) {
+				submitError = `These headings do not follow the section format (## §1 Title, ### §1.1 Title, #### §1.1.A Title): ${malformed.join(' | ')}`;
+				return;
+			}
+		}
+		if (isAmendmentMode() && selectedTargetSections.length > 0) {
+			const { targets, added, removed } = amendmentTargets(sections, selectedTargetSections);
+			if (removed.length > 0) {
+				const list = removed.map((n) => `§${n}`).join(', ');
+				const ok = confirm(
+					`${list} ${removed.length === 1 ? 'has' : 'have'} no text in this amendment and will be removed from the law. Continue?`
+				);
+				if (!ok) return;
+			}
+			if (added.length > 0) {
+				selectedTargetSections = targets;
+				showToast('info', `Added ${added.map((n) => `§${n}`).join(', ')} to the targets: the amendment text contains ${added.length === 1 ? 'it' : 'them'}.`);
+			}
 		}
 		if (proposeRestrictions && proposeLockMode === 'specific' && proposeLockedSections.length === 0) {
 			submitError = 'Select at least one section to lock, or switch to "Entire document".';

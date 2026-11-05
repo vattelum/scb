@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatCitation, RELATION_REFERENCES } from '@vattelum/document-registry-js';
 	import { chainIdToLabel } from '#lib/constants/networks.ts';
+	import { inForceCitation } from '#lib/services/exportCitation.ts';
 
 	let {
 		title,
@@ -12,7 +13,8 @@
 		categoryId,
 		documentId,
 		categoryName,
-		targetSection = ''
+		targetSection = '',
+		resolvedAsOf
 	}: {
 		title: string;
 		version: number;
@@ -24,6 +26,8 @@
 		documentId: number;
 		categoryName: string;
 		targetSection?: string;
+		/** Cite the text in force at this cutoff rather than the version alone. */
+		resolvedAsOf?: bigint;
 	} = $props();
 
 	let label = $state('Cite');
@@ -47,10 +51,11 @@
 			voteId: '',
 			docType: 0
 		};
-		const citation = formatCitation(ref, doc, {
+		const base = formatCitation(ref, doc, {
 			categoryName,
 			networkName: chainIdToLabel(chainId)
 		});
+		const citation = resolvedAsOf === undefined ? base : inForceCitation(base, resolvedAsOf);
 		try {
 			await navigator.clipboard.writeText(citation);
 			label = 'Copied';
